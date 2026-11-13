@@ -4,69 +4,127 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Cascade editor</title>
+<link rel="icon" type="image/png" href="data:image/png;base64,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">
 <style>
-:root{--bg:#14110d;--panel:#1d1913;--panel2:#262017;--line:#3a3022;--text:#f3ead9;--dim:#a39680;--orange:#ff8a1f;--yellow:#ffd23f;--red:#ff6b5e;--green:#7ddc7a}
+:root{--bg:#111110;--surface:#191817;--raised:#211f1d;--line:#2c2a26;--text:#eeeae2;--muted:#8d877b;--accent:#f08a24;--accent-soft:#f08a2422;--yellow:#f5c84c;--bad:#ef6a5b;--good:#86c46a;--mono:ui-monospace,"SF Mono","Cascadia Mono",Menlo,Consolas,monospace}
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--text);font:15px/1.45 system-ui,Segoe UI,Roboto,sans-serif}
-header{display:flex;align-items:center;gap:14px;padding:12px 18px;border-bottom:1px solid var(--line);background:var(--panel);position:sticky;top:0;z-index:5;flex-wrap:wrap}
-header h1{margin:0;font-size:20px;letter-spacing:.5px}
-header h1 b{color:var(--yellow)} header h1 i{color:var(--orange);font-style:normal}
-#status{color:var(--dim);font-size:13px;flex:1;min-width:120px}
-#status.bad{color:var(--red)} #status.good{color:var(--green)}
-button{font:inherit;color:var(--text);background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:7px 13px;cursor:pointer}
-button:hover{border-color:var(--orange)}
-button.primary{background:var(--orange);border-color:var(--orange);color:#1a1206;font-weight:600}
-button.primary:disabled{opacity:.45;cursor:default}
-button.small{padding:3px 9px;font-size:13px}
-button.danger:hover{border-color:var(--red);color:var(--red)}
-main{display:grid;grid-template-columns:280px 1fr;min-height:calc(100vh - 58px)}
-aside{border-right:1px solid var(--line);background:var(--panel);padding:12px;overflow:auto}
-aside h2{font-size:12px;text-transform:uppercase;letter-spacing:1px;color:var(--dim);margin:14px 4px 6px;display:flex;justify-content:space-between;align-items:center}
-.item{padding:8px 10px;border-radius:8px;cursor:pointer;border:1px solid transparent;display:flex;justify-content:space-between;gap:8px}
-.item:hover{background:var(--panel2)} .item.on{background:var(--panel2);border-color:var(--orange)}
-.item small{color:var(--dim)} .item .link{color:var(--yellow);font-size:12px}
-section{padding:18px 22px;max-width:980px}
-.empty{color:var(--dim);padding:60px 0;text-align:center}
-fieldset{border:1px solid var(--line);border-radius:10px;margin:0 0 16px;padding:12px 14px;background:var(--panel)}
-legend{color:var(--yellow);font-weight:600;padding:0 6px}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px 14px}
-label{display:flex;flex-direction:column;gap:3px;font-size:13px;color:var(--dim)}
-label.check{flex-direction:row;align-items:center;gap:8px;color:var(--text);font-size:14px}
-input,select,textarea{font:inherit;color:var(--text);background:var(--bg);border:1px solid var(--line);border-radius:7px;padding:6px 8px;width:100%}
-input:focus,select:focus,textarea:focus{outline:none;border-color:var(--orange)}
-input[type=checkbox]{width:auto;accent-color:var(--orange)}
-textarea{min-height:76px;resize:vertical;font-family:ui-monospace,Consolas,monospace}
-.preview{background:#0b0906 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16'%3E%3Crect width='8' height='8' fill='%2313100b'/%3E%3Crect x='8' y='8' width='8' height='8' fill='%2313100b'/%3E%3C/svg%3E");border:1px solid var(--line);border-radius:8px;padding:14px;margin-top:8px;text-align:center;font-family:ui-monospace,Consolas,monospace;min-height:48px;text-shadow:1px 1px 0 #000a}
-.row{display:grid;grid-template-columns:90px 120px 1fr auto;gap:8px;margin-bottom:8px;align-items:center}
-.hint{color:var(--dim);font-size:12.5px;margin:6px 0 0}
-.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;gap:10px;flex-wrap:wrap}
-.top h2{margin:0;font-size:22px} .top h2 small{color:var(--dim);font-size:14px;font-weight:400}
-@media(max-width:760px){main{grid-template-columns:1fr}aside{border-right:0;border-bottom:1px solid var(--line)}.row{grid-template-columns:1fr 1fr}}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;display:flex;flex-direction:column;-webkit-font-smoothing:antialiased}
+header{display:flex;align-items:center;gap:14px;height:52px;padding:0 16px;border-bottom:1px solid var(--line);flex:none}
+header h1{margin:0;font-size:16px;font-weight:700;letter-spacing:-.2px;display:flex;align-items:center;gap:8px}
+header h1 img{width:26px;height:26px;border-radius:6px}
+#status{flex:1;color:var(--muted);font-size:13px;display:flex;align-items:center;gap:7px;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#status::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--muted);flex:none}
+#status.bad{color:var(--bad)} #status.bad::before{background:var(--bad)}
+#status.good::before{background:var(--good)}
+button{font:inherit;font-size:13px;font-weight:500;color:var(--text);background:var(--raised);border:1px solid var(--line);border-radius:7px;padding:6px 12px;cursor:pointer;transition:background .12s,border-color .12s}
+button:hover{background:#2a2825;border-color:#3a3732}
+button.primary{background:var(--accent);border-color:var(--accent);color:#1b1002;font-weight:600}
+button.primary:hover{background:#f79a3c}
+button.primary:disabled{background:var(--raised);border-color:var(--line);color:var(--muted);cursor:default}
+button.small{padding:2px 9px;font-size:12px;border-radius:6px}
+button.ghost{background:none;border-color:transparent;color:var(--muted)}
+button.ghost:hover{color:var(--text);background:var(--raised)}
+button.danger:hover{color:var(--bad);border-color:#5a2a25;background:#2a1715}
+main{flex:1;display:grid;grid-template-columns:250px minmax(0,1fr) 360px;min-height:0}
+aside,#editor{overflow:auto;background:var(--surface)}
+aside{border-right:1px solid var(--line);padding:14px 10px}
+#editor{border-left:1px solid var(--line)}
+aside h2{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:6px 8px 6px;display:flex;justify-content:space-between;align-items:center}
+aside h2 + div{margin-bottom:18px}
+.item{display:flex;align-items:center;gap:9px;padding:7px 8px;border-radius:7px;cursor:pointer}
+.item:hover{background:var(--raised)}
+.item.on{background:var(--accent-soft);box-shadow:inset 2px 0 0 var(--accent)}
+.item .name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500}
+.item small{color:var(--muted);font-weight:400;margin-left:4px}
+.item .link{font-size:11px;color:var(--yellow);background:#f5c84c18;padding:1px 6px;border-radius:99px;white-space:nowrap}
+.cube{width:12px;height:12px;border-radius:3px;flex:none}
+.cube.k-mob{background:#7dbb5a}.cube.k-player{background:#5b9be0}.cube.k-block{background:#9a9a96}.cube.k-item{background:#62d0d6}.cube.k-text{background:#e9e4d6}.cube.k-particle{background:#dd79c9}
+.note{color:var(--muted);font-size:12px;margin:8px 8px 0;line-height:1.5}
+.note code{font-family:var(--mono);color:var(--text);font-size:11.5px}
+#canvas{position:relative;min-height:0;padding:16px;display:flex;flex-direction:column}
+.empty{color:var(--muted);margin:auto;text-align:center;max-width:300px}
+.top{padding:16px 18px 12px;display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.top h2{margin:0;font-size:19px;font-weight:650;letter-spacing:-.3px;word-break:break-all}
+.top h2 small{display:block;color:var(--muted);font-size:12.5px;font-weight:400;letter-spacing:0;margin-top:2px}
+nav{display:flex;gap:2px;padding:0 14px;border-bottom:1px solid var(--line)}
+nav button{background:none;border:0;border-radius:0;color:var(--muted);padding:8px 8px 10px;border-bottom:2px solid transparent;margin-bottom:-1px}
+nav button:hover{background:none;color:var(--text)}
+nav button.on{color:var(--text);border-bottom-color:var(--accent)}
+.pane{display:none;padding:16px 18px 24px}
+.pane.on{display:block}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+label{display:flex;flex-direction:column;gap:5px;color:var(--muted);font-size:12px}
+label.wide{grid-column:1/-1}
+label.check{flex-direction:row;align-items:center;gap:10px;color:var(--text);font-size:13.5px;grid-column:1/-1;cursor:pointer}
+input,select,textarea{font:inherit;font-size:13.5px;color:var(--text);width:100%;height:34px;padding:0 10px;background:var(--bg);border:1px solid var(--line);border-radius:7px;transition:border-color .12s,box-shadow .12s}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+input[type=number],input[data-f=id],input[data-f=what],input[data-gear],input[data-f=background],input[data-f=permission]{font-family:var(--mono);font-size:12.5px}
+/* a switch, not a tick box */
+input[type=checkbox]{appearance:none;width:32px;height:18px;padding:0;border-radius:99px;background:var(--line);border:0;position:relative;flex:none;cursor:pointer;transition:background .15s}
+input[type=checkbox]::after{content:"";position:absolute;left:2px;top:2px;width:14px;height:14px;border-radius:50%;background:#fff;transition:transform .15s}
+input[type=checkbox]:checked{background:var(--accent)} input[type=checkbox]:checked::after{transform:translateX(14px)}
+textarea{height:auto;min-height:92px;padding:8px 10px;resize:vertical;font-family:var(--mono);font-size:12.5px;line-height:1.5}
+.row{display:grid;grid-template-columns:78px 1fr auto;gap:6px;margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid var(--line)}
+.row input{grid-column:1/-1}
+.hint{color:var(--muted);font-size:12px;margin:12px 0 0;line-height:1.5}
+/* the canvas keeps the look of the game: this is what the page is for */
+.stage,.map{flex:1;min-height:340px;position:relative;overflow:hidden;border-radius:12px;user-select:none;touch-action:none;box-shadow:0 0 0 1px var(--line),0 12px 40px #0006}
+.stage{background:linear-gradient(#8fb6ff 0,#b9d2ff 78%,#5f9440 78% 81%,#6f5238 81%)}
+.stage.over{box-shadow:0 0 0 2px var(--accent),0 12px 40px #0006}
+.stage .grid-lines{position:absolute;inset:0 0 22% 0;background:linear-gradient(#ffffff2e 1px,#0000 1px) 0 100%/100% 56px,linear-gradient(90deg,#ffffff2e 1px,#0000 1px) calc(50% + 28px) 0/56px 100%}
+.origin{position:absolute;left:50%;bottom:22%;width:0;height:0}
+.fig{position:absolute;bottom:0;transform:translateX(-50%);display:flex;flex-direction:column;filter:drop-shadow(0 3px 0 #0003)}
+.fig i,.fig b,.fig u{display:block}
+.playerfig i{background:#c99a72;flex:0 0 25%;margin:0 8%} .playerfig b{background:#2f9bb0;flex:0 0 37%} .playerfig u{background:#3b3fa0;flex:1;margin:0 12%}
+.mobfig i{background:#b98a67;flex:0 0 28%;margin:0 4%} .mobfig b{background:#6a4a35;flex:1} .mobfig u{display:none}
+.cubefig{background:linear-gradient(135deg,#a8a8a4,#7d7d79)}
+.itemfig{background:linear-gradient(135deg,#9af0f4,#3fb6bd);transform:translateX(-50%) rotate(45deg)}
+.fig-name{position:absolute;bottom:-30px;transform:translateX(-50%);white-space:nowrap;color:#fff;font:600 12px var(--mono);background:#0007;padding:2px 8px;border-radius:99px}
+.chip{position:absolute;transform:translate(-50%,0);cursor:grab;white-space:pre;text-align:center;z-index:2;transition:box-shadow .12s}
+.chip:active{cursor:grabbing}
+.chip:hover{box-shadow:0 0 0 2px #fff9}
+.chip.sel{box-shadow:0 0 0 2px var(--accent)}
+.chip.k-text{background:#00000059;padding:3px 8px;font:14px/1.3 var(--mono);text-shadow:1px 1px 0 #0009}
+.chip.k-item{width:24px;height:24px;background:linear-gradient(135deg,#9af0f4,#3fb6bd);transform:translate(-50%,0) rotate(45deg)}
+.chip.k-block{width:32px;height:32px;background:linear-gradient(135deg,#a8a8a4,#7d7d79)}
+.chip.k-particle{width:36px;height:36px;border-radius:50%;background:radial-gradient(#fff 0 12%,#0000 14%) 0 0/11px 11px,radial-gradient(#ffd23f 0 14%,#0000 16%) 5px 6px/13px 13px}
+.tip{position:absolute;left:12px;bottom:12px;font-size:12px;color:#fff;background:#0b1a33aa;padding:5px 10px;border-radius:99px;backdrop-filter:blur(4px)}
+.ruler{position:absolute;right:14px;bottom:calc(22% + 8px);width:56px;border-bottom:2px solid #fff;color:#fff;font-size:11px;text-align:center}
+.map{background:#4d7d33 linear-gradient(#0000001a 1px,#0000 1px) 50% 50%/24px 24px,linear-gradient(90deg,#0000001a 1px,#0000 1px) 50% 50%/24px 24px;background-color:#4d7d33}
+.pin{position:absolute;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:4px;cursor:grab;font:600 11px var(--mono);color:#fff;white-space:nowrap}
+.pin span{background:#0007;padding:1px 7px;border-radius:99px}
+.pin .cube{width:16px;height:16px;box-shadow:0 2px 0 #0004} .pin.sel .cube{box-shadow:0 0 0 2px #fff,0 0 0 4px var(--accent)} .pin:not(.sel){opacity:.85}
+.world{margin-top:12px;height:110px;position:relative;overflow:hidden;border-radius:9px;background:linear-gradient(#8fb6ff 0,#b9d2ff 70%,#5f9440 70% 76%,#6f5238 76%)}
+.plate{position:absolute;left:50%;top:14%;transform:translateX(-50%);background:#00000059;padding:3px 8px;text-align:center;white-space:pre;font:14px/1.3 var(--mono);text-shadow:1px 1px 0 #0009}
+@media(max-width:1000px){body{height:auto}main{grid-template-columns:1fr}aside,#editor{border:0;border-bottom:1px solid var(--line)}}
 </style>
 </head>
 <body>
 <header>
-  <h1><b>CAS</b><i>CADE</i> editor</h1>
-  <span id="status">Loading…</span>
+  <h1><img alt="" src="data:image/png;base64,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">Cascade</h1>
+  <span id="status">loading</span>
   <button id="reload" title="Throw away changes and load what the server has">Reload</button>
   <button id="save" class="primary" disabled>Save to server</button>
 </header>
 <main>
   <aside>
-    <h2>NPCs <button class="small" data-add="npc">+ New</button></h2><div id="npcs"></div>
-    <h2>Displays <button class="small" data-add="display">+ New</button></h2><div id="displays"></div>
-    <p class="hint">Changes go to the server when you press <b>Save to server</b>. New things appear at the position you type; in game, <code>/npc movehere &lt;id&gt;</code> brings one to you.</p>
+    <h2>NPCs <button class="small" data-add="npc">+ new</button></h2><div id="npcs"></div>
+    <h2>Displays <button class="small" data-add="display">+ new</button></h2><div id="displays"></div>
+    <p class="note">Nothing changes in game until you press <b>Save to server</b>.</p>
+    <p class="note">A new one starts where the last one you picked is. Stand somewhere and run <code>/npc movehere &lt;id&gt;</code> to bring it to you.</p>
   </aside>
-  <section id="editor"><div class="empty">Pick an NPC or display on the left, or make a new one.</div></section>
+  <div id="canvas"><div class="empty">Pick an NPC or a display to see it here.</div></div>
+  <section id="editor"></section>
 </main>
 <script>
 const token = new URLSearchParams(location.search).get('t') || '';
-let state = {things: [], mobs: [], particles: [], slots: [], actions: []}, current = null, dirty = false;
+let state = {things: [], mobs: [], particles: [], slots: [], actions: []}, current = null, dirty = false, tab = 'what';
 const $ = (s, r = document) => r.querySelector(s);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]));
 const COLOURS = {0:'#000',1:'#0000aa',2:'#00aa00',3:'#00aaaa',4:'#aa0000',5:'#aa00aa',6:'#ffaa00',7:'#aaaaaa',8:'#555555',9:'#5555ff',a:'#55ff55',b:'#55ffff',c:'#ff5555',d:'#ff55ff',e:'#ffff55',f:'#ffffff'};
 function status(text, kind) { const el = $('#status'); el.textContent = text; el.className = kind || ''; }
-function touch() { dirty = true; $('#save').disabled = false; status('Unsaved changes'); }
+function touch() { dirty = true; $('#save').disabled = false; status('not saved yet'); }
 // Minecraft & colour codes as HTML, for the preview
 function mc(line) {
   let out = '', colour = '#fff', bold = false, italic = false, under = false, text = '';
@@ -87,90 +145,165 @@ const KINDS = {npc:[['mob','Mob'],['player','Player'],['block','Block'],['item',
 function list() {
   for (const group of ['npc', 'display']) {
     $('#' + group + 's').innerHTML = state.things.map((t, i) => t.group !== group ? '' :
-      `<div class="item ${i === current ? 'on' : ''}" data-i="${i}"><span>${esc(t.id)} <small>${esc(t.kind)}${t.what ? ' · ' + esc(t.what) : ''}</small></span>${t.attached ? `<span class="link">↳ ${esc(t.attached)}</span>` : ''}</div>`).join('') || '<div class="hint">None yet.</div>';
+      `<div class="item ${i === current ? 'on' : ''}" data-i="${i}" draggable="true"><i class="cube k-${esc(t.kind)}"></i><span class="name">${esc(t.id)} <small>${esc(t.what || t.kind)}</small></span>${t.attached ? `<span class="link" title="attached to ${esc(t.attached)}">on ${esc(t.attached)}</span>` : ''}</div>`).join('') || '<div class="note">none yet</div>';
   }
 }
 function num(name, label, t, step) { return `<label>${label}<input type="number" step="${step || 'any'}" data-f="${name}" value="${t[name]}"></label>`; }
 function check(name, label, t) { return `<label class="check"><input type="checkbox" data-f="${name}" ${t[name] ? 'checked' : ''}>${label}</label>`; }
 function select(name, label, t, options) { return `<label>${label}<select data-f="${name}">${options.map(o => { const [v, l] = Array.isArray(o) ? o : [o, o]; return `<option value="${esc(v)}" ${t[name] === v ? 'selected' : ''}>${esc(l)}</option>`; }).join('')}</select></label>`; }
 function text(name, label, t, hint) { return `<label>${label}<input data-f="${name}" value="${esc(t[name])}" ${hint ? `placeholder="${esc(hint)}"` : ''}></label>`; }
+const BLOCK = 56, TILE = 24;
+const TALL = {enderman: 2.9, iron_golem: 2.7, warden: 2.9, chicken: 0.7, cat: 0.7, rabbit: 0.5, fox: 0.7, bat: 0.9, parrot: 0.9, bee: 0.6, pig: 0.9, sheep: 1.3, cow: 1.4, wolf: 0.85, slime: 1, horse: 1.6, spider: 0.9, creeper: 1.7, villager: 1.95};
+// The NPC from the side, and the displays that ride on it. `npc` may be missing for a display
+// that stands alone.
+function stage(npc, selected) {
+  if (!npc) return '';
+  const k = npc.scale || 1, chips = state.things.map((d, i) => [d, i]).filter(([d]) => d.group === 'display' && d.attached === npc.id);
+  let fig;
+  if (npc.kind === 'block') fig = `<div class="fig cubefig" style="width:${BLOCK * k}px;height:${BLOCK * k}px;left:${BLOCK * k / 2}px"></div>`;
+  else if (npc.kind === 'item') fig = `<div class="fig itemfig" style="width:${BLOCK * 0.45 * k}px;height:${BLOCK * 0.45 * k}px;bottom:${BLOCK * 0.25 * k}px"></div>`;
+  else { const h = (npc.kind === 'player' ? 1.8 : TALL[npc.what] || 1.8) * k; fig = `<div class="fig ${npc.kind}fig" style="width:${BLOCK * 0.6 * k}px;height:${BLOCK * h}px"><i></i><b></b><u></u></div>`; }
+  const drawn = chips.map(([d, i]) => `<div class="chip k-${esc(d.kind)} ${i === selected ? 'sel' : ''}" data-chip="${i}" title="${esc(d.id)}: drag to move" style="left:${d.offset[0] * BLOCK}px;bottom:${d.offset[1] * BLOCK}px">${d.kind === 'text' ? d.lines.map(mc).join('\n') : ''}</div>`).join('');
+  return `<div class="stage" data-stage="${esc(npc.id)}"><div class="grid-lines"></div><div class="origin">${fig}<span class="fig-name">${esc(npc.id)}</span>${drawn}</div>
+    <span class="tip">${chips.length ? 'Drag a display to move it' : 'Nothing is attached yet'} · drop one from the list to attach it</span><span class="ruler">1 block</span></div>`;
+}
+// Everything that stands on its own in the same world, from above, around `t`.
+function map(t) {
+  const pins = state.things.map((o, i) => [o, i]).filter(([o]) => !o.attached && o.world === t.world && Math.abs(o.x - t.x) < 40 && Math.abs(o.z - t.z) < 14);
+  return `<div class="map" data-map><span class="tip">Seen from above · drag to move, snaps to half blocks</span>${pins.map(([o, i]) => `<div class="pin ${o === t ? 'sel' : ''}" data-pin="${i}" style="left:calc(50% + ${(o.x - t.x) * TILE}px);top:calc(50% + ${(o.z - t.z) * TILE}px)"><i class="cube k-${esc(o.kind)}"></i><span>${esc(o.id)}</span></div>`).join('')}</div>`;
+}
 function editor() {
   const el = $('#editor'), t = state.things[current];
-  if (!t) { el.innerHTML = '<div class="empty">Pick an NPC or display on the left, or make a new one.</div>'; return; }
-  const npc = t.group === 'npc', body = ['text', 'item', 'block'].includes(t.kind);
-  const what = t.kind === 'mob' ? select('what', 'Mob type', t, state.mobs) : t.kind === 'particle' ? select('what', 'Particle', t, state.particles)
-    : t.kind === 'player' ? text('what', 'Skin (a player name)', t, 'Notch') : t.kind === 'text' ? '' : text('what', t.kind === 'block' ? 'Block' : 'Item', t, t.kind === 'block' ? 'stone' : 'diamond');
+  if (!t) { el.innerHTML = ''; $('#canvas').innerHTML = '<div class="empty">Pick an NPC or a display to see it here.</div>'; return; }
+  const npc = t.group === 'npc', body = ['text', 'item', 'block'].includes(t.kind), alive = t.kind === 'mob' || t.kind === 'player';
+  const what = t.kind === 'mob' ? select('what', 'Mob', t, state.mobs) : t.kind === 'particle' ? select('what', 'Particle', t, state.particles)
+    : t.kind === 'player' ? text('what', 'Skin: a player name', t, 'Notch') : t.kind === 'text' ? '' : text('what', t.kind === 'block' ? 'Block' : 'Item', t, t.kind === 'block' ? 'stone' : 'diamond');
   const npcs = state.things.filter(o => o.group === 'npc').map(o => o.id);
-  let html = `<div class="top"><h2>${esc(t.id || '(no id)')} <small>${npc ? 'NPC' : 'display'}</small></h2><div><button data-act="copy">Duplicate</button> <button class="danger" data-act="delete">Delete</button></div></div>
-  <fieldset><legend>What it is</legend><div class="grid">${text('id', 'Id', t, 'letters, numbers, - and _')}${select('kind', 'Kind', t, KINDS[t.group])}${what}${num('scale', 'Scale', t, 0.05)}</div></fieldset>`;
-  if (t.kind === 'text') html += `<fieldset><legend>Text</legend><label>One line per row; &amp; colour codes such as &amp;6 gold, &amp;e yellow, &amp;l bold<textarea data-lines>${esc(t.lines.join('\n'))}</textarea></label><div class="preview" id="preview"></div>
-    <div class="grid" style="margin-top:10px">${select('alignment', 'Align', t, ['center', 'left', 'right'])}${num('line_width', 'Line width', t, 1)}${text('background', 'Background (#AARRGGBB)', t, 'game default')}${check('shadow', 'Text shadow', t)}${check('see_through', 'Visible through blocks', t)}</div></fieldset>`;
-  html += `<fieldset><legend>Where</legend>`;
-  if (!npc) html += `<div class="grid" style="margin-bottom:10px">${select('attached', 'Attached to NPC', t, [['', 'nothing: stands on its own'], ...npcs])}</div>`;
-  if (!npc && t.attached) html += `<div class="grid"><label>Right of the NPC<input type="number" step="any" data-o="0" value="${t.offset[0]}"></label><label>Above its feet<input type="number" step="any" data-o="1" value="${t.offset[1]}"></label><label>In front<input type="number" step="any" data-o="2" value="${t.offset[2]}"></label></div><p class="hint">An attached display goes wherever its NPC goes.</p>`;
-  else html += `<div class="grid">${text('world', 'World', t)}${num('x', 'X', t)}${num('y', 'Y', t)}${num('z', 'Z', t)}${num('yaw', 'Facing (yaw)', t, 1)}${num('pitch', 'Tilt (pitch)', t, 1)}</div>`;
-  html += `</fieldset><fieldset><legend>Looks</legend><div class="grid">${check('glow', 'Glowing outline', t)}`;
-  if (t.kind === 'mob' || t.kind === 'player') html += `${check('look', 'Faces the nearest player', t)}${num('look_range', 'within blocks', t, 1)}${check('sneaking', 'Sneaking', t)}${check('invisible', 'Invisible', t)}${t.kind === 'mob' ? check('baby', 'Baby', t) : ''}`;
-  if (body) html += `${select('billboard', 'Turns to the viewer', t, [['center', 'fully'], ['vertical', 'left and right only'], ['horizontal', 'up and down only'], ['fixed', 'never']])}${num('spin', 'Spin (degrees a second)', t, 5)}${num('view_range', 'View range', t, 0.1)}`;
-  if (t.kind === 'particle') html += `${num('count', 'Particles per burst', t, 1)}${num('interval', 'Ticks between bursts', t, 1)}${num('spread', 'Spread', t, 0.05)}${num('speed', 'Speed', t, 0.01)}`;
-  html += `</div></fieldset>`;
-  if (t.kind === 'mob' || t.kind === 'player') html += `<fieldset><legend>Gear</legend><div class="grid">${state.slots.map(s => `<label>${s}<input data-gear="${s}" value="${esc(t.equipment[s] || '')}" placeholder="none"></label>`).join('')}</div><p class="hint">Item names, such as diamond_sword or iron_helmet.</p></fieldset>`;
-  if (t.kind !== 'particle') html += `<fieldset><legend>When clicked</legend><div id="actions">${t.actions.map((a, i) => `<div class="row" data-a="${i}"><select data-ak="click">${['any', 'right', 'left'].map(c => `<option ${a.click === c ? 'selected' : ''}>${c}</option>`).join('')}</select><select data-ak="do">${state.actions.map(c => `<option ${a.do === c ? 'selected' : ''}>${c}</option>`).join('')}</select><input data-ak="value" value="${esc(a.value)}" placeholder="message, command, sound or x y z"><button class="small danger" data-ar="${i}">✕</button></div>`).join('')}</div>
-    <button class="small" data-act="action">+ Add action</button><div class="grid" style="margin-top:12px">${num('cooldown', 'Seconds between clicks', t, 0.1)}${text('permission', 'Permission needed', t, 'none')}</div>
-    <p class="hint">%player% is the player who clicked, %id% this ${npc ? 'NPC' : 'display'}. Left clicks only reach mob NPCs; use right or any elsewhere.</p></fieldset>`;
-  el.innerHTML = html; preview();
+  const panes = [];
+  panes.push(['what', 'What', `<div class="grid">${text('id', 'Id', t, 'letters, numbers, - and _')}${select('kind', 'Kind', t, KINDS[t.group])}${what}${num('scale', 'Size (1 is normal)', t, 0.05)}</div>`]);
+  if (t.kind === 'text') panes.push(['text', 'Text', `<label class="wide">One line per row. Colour codes: &amp;6 gold, &amp;e yellow, &amp;a green, &amp;c red, &amp;l bold<textarea data-lines spellcheck="false">${esc(t.lines.join('\n'))}</textarea></label>
+    <div class="world"><div class="plate" id="preview"></div></div>
+    <div class="grid" style="margin-top:14px">${select('alignment', 'Lines line up', t, ['center', 'left', 'right'])}${num('line_width', 'Width before wrapping', t, 1)}${text('background', 'Backing colour #AARRGGBB', t, 'as the game does it')}${check('shadow', 'Shadow under letters', t)}${check('see_through', 'Shows through walls', t)}</div>`]);
+  let where = '';
+  if (!npc) where += `<div class="grid" style="margin-bottom:12px">${select('attached', 'Rides on an NPC', t, [['', 'no, it stands alone'], ...npcs])}</div>`;
+  if (!npc && t.attached) where += `<div class="grid"><label>Sideways<input type="number" step="any" data-o="0" value="${t.offset[0]}"></label><label>Up from its feet<input type="number" step="any" data-o="1" value="${t.offset[1]}"></label><label>Forwards<input type="number" step="any" data-o="2" value="${t.offset[2]}"></label></div><p class="hint">It goes wherever ${esc(t.attached)} goes.</p>`;
+  else where += `<div class="grid">${text('world', 'World', t)}${num('x', 'X', t)}${num('y', 'Y', t)}${num('z', 'Z', t)}${num('yaw', 'Facing, degrees', t, 1)}${num('pitch', 'Tilt, degrees', t, 1)}</div>`;
+  panes.push(['where', 'Where', where]);
+  let looks = `<div class="grid">${check('glow', 'Glowing outline', t)}`;
+  if (alive) looks += `${check('look', 'Watches the nearest player', t)}${check('invisible', 'Invisible', t)}${num('look_range', 'Watches within, blocks', t, 1)}`;
+  if (body) looks += `${select('billboard', 'Turns to face you', t, [['center', 'always'], ['vertical', 'left and right only'], ['horizontal', 'up and down only'], ['fixed', 'never']])}${num('spin', 'Spins, degrees a second', t, 5)}${num('view_range', 'Seen from (1 is normal)', t, 0.1)}`;
+  if (t.kind === 'particle') looks += `${num('count', 'Particles each puff', t, 1)}${num('interval', 'Ticks between puffs', t, 1)}${num('spread', 'How wide', t, 0.05)}${num('speed', 'How fast', t, 0.01)}`;
+  panes.push(['looks', 'Looks', looks + '</div>']);
+  if (alive) panes.push(['gear', 'Gear', `<div class="grid">${state.slots.map(s => `<label>${s}<input data-gear="${s}" value="${esc(t.equipment[s] || '')}" placeholder="nothing"></label>`).join('')}</div><p class="hint">Item names as the game spells them: diamond_sword, iron_helmet, shield.</p>`]);
+  if (t.kind !== 'particle') panes.push(['clicks', 'Clicks' + (t.actions.length ? ' (' + t.actions.length + ')' : ''), `<div id="actions">${t.actions.map((a, i) => `<div class="row" data-a="${i}"><select data-ak="click">${['any', 'right', 'left'].map(c => `<option ${a.click === c ? 'selected' : ''}>${c}</option>`).join('')}</select><select data-ak="do">${state.actions.map(c => `<option ${a.do === c ? 'selected' : ''}>${c}</option>`).join('')}</select><input data-ak="value" value="${esc(a.value)}" placeholder="what to say, run, play, or x y z"><button class="small ghost danger" data-ar="${i}" title="Remove this">Remove</button></div>`).join('') || '<p class="hint" style="margin:0 0 10px">Nothing happens when this is clicked.</p>'}</div>
+    <button data-act="action">+ add something</button><div class="grid" style="margin-top:16px">${num('cooldown', 'Seconds between clicks', t, 0.1)}${text('permission', 'Only players with permission', t, 'anyone')}</div>
+    <p class="hint">%player% becomes whoever clicked, %id% becomes ${esc(t.id)}. Pumpkin only notices a left click on mobs, so use right or any for everything else.</p>`]);
+  if (!panes.some(p => p[0] === tab)) tab = 'what';
+  $('#canvas').innerHTML = stage(npc ? t : state.things.find(o => o.group === 'npc' && o.id === t.attached), current) || map(t);
+  el.innerHTML = `<div class="top"><h2>${esc(t.id || '(no id)')} <small>${npc ? 'NPC' : 'Display'} · ${esc(t.kind)}</small></h2><div style="display:flex;gap:6px"><button class="ghost" data-act="copy">Duplicate</button><button class="ghost danger" data-act="delete">Delete</button></div></div>
+    <nav>${panes.map(p => `<button data-tab="${p[0]}" class="${p[0] === tab ? 'on' : ''}">${p[1]}</button>`).join('')}</nav>
+    ${panes.map(p => `<div class="pane ${p[0] === tab ? 'on' : ''}">${p[2]}</div>`).join('')}`;
+  preview();
 }
-function preview() { const p = $('#preview'), t = state.things[current]; if (p && t) p.innerHTML = t.lines.map(mc).join('<br>'); }
+// Draws the canvas again without touching the fields being typed in.
+function redraw() { const t = state.things[current]; if (t) $('#canvas').innerHTML = stage(t.group === 'npc' ? t : state.things.find(o => o.group === 'npc' && o.id === t.attached), current) || map(t); }
+function preview() { const p = $('#preview'), t = state.things[current]; if (p && t) p.innerHTML = t.lines.map(mc).join('\n'); }
 document.addEventListener('input', e => {
   const t = state.things[current], el = e.target; if (!t) return;
   if (el.dataset.f) {
     const f = el.dataset.f; t[f] = el.type === 'checkbox' ? el.checked : el.type === 'number' ? (parseFloat(el.value) || 0) : el.value;
     touch();
-    if (f === 'id') { $('.top h2').firstChild.textContent = (t.id || '(no id)') + ' '; list(); }
+    if (f === 'id') { $('.top h2').firstChild.textContent = (t.id || '(no id)') + ' '; list(); const n = $('.fig-name'); if (n && t.group === 'npc') n.textContent = t.id; }
     if (el.tagName === 'SELECT' && ['kind', 'attached'].includes(f)) {
       if (f === 'kind') { t.what = ({mob: 'villager', particle: 'flame', player: '', text: '', block: 'stone', item: 'diamond'})[t.kind]; if (t.kind === 'text' && !t.lines.length) t.lines = ['&eNew text']; }
       if (f === 'attached' && t.attached) t.offset = [0, 2.3, 0];
       list(); editor();
-    } else if (f === 'what') list();
-  } else if (el.dataset.lines !== undefined) { t.lines = el.value.split('\n'); touch(); preview(); }
-  else if (el.dataset.o) { t.offset[+el.dataset.o] = parseFloat(el.value) || 0; touch(); }
+    } else if (f === 'what') { list(); redraw(); }
+    else if (['scale', 'x', 'z'].includes(f)) redraw();
+  } else if (el.dataset.lines !== undefined) { t.lines = el.value.split('\n'); touch(); preview(); redraw(); }
+  else if (el.dataset.o) { t.offset[+el.dataset.o] = parseFloat(el.value) || 0; touch(); redraw(); }
   else if (el.dataset.gear) { if (el.value.trim()) t.equipment[el.dataset.gear] = el.value.trim(); else delete t.equipment[el.dataset.gear]; touch(); }
   else if (el.dataset.ak) { t.actions[+el.closest('.row').dataset.a][el.dataset.ak] = el.value; touch(); }
 });
 document.addEventListener('click', e => {
-  const el = e.target, item = el.closest('.item');
+  const el = e.target, item = el.closest('.item[data-i]');
   if (item) { current = +item.dataset.i; list(); editor(); return; }
+  if (el.dataset.tab) { tab = el.dataset.tab; editor(); return; }
   if (el.dataset.add) {
     const group = el.dataset.add; let n = 1; while (state.things.some(t => t.group === group && t.id === group + n)) n++;
     const near = state.things[current] || {};
     const t = Object.assign(structuredClone(DEFAULTS), {group, id: group + n, world: near.world || DEFAULTS.world, x: near.x || 0, y: near.y || 64, z: near.z || 0}, group === 'npc' ? {look: true} : {kind: 'text', what: '', lines: ['&eNew text']});
-    state.things.push(t); current = state.things.length - 1; touch(); list(); editor(); return;
+    state.things.push(t); current = state.things.length - 1; tab = 'what'; touch(); list(); editor(); return;
   }
   const t = state.things[current]; if (!t) return;
   if (el.dataset.act === 'delete') { if (confirm(`Delete ${t.id}?`)) { state.things.forEach(o => { if (t.group === 'npc' && o.attached === t.id) o.attached = ''; }); state.things.splice(current, 1); current = null; touch(); list(); editor(); } }
   else if (el.dataset.act === 'copy') { const c = structuredClone(t); let n = 2; while (state.things.some(o => o.group === c.group && o.id === t.id + n)) n++; c.id = t.id + n; c.x += 1; state.things.push(c); current = state.things.length - 1; touch(); list(); editor(); }
-  else if (el.dataset.act === 'action') { t.actions.push({click: 'right', do: 'message', value: ''}); touch(); editor(); }
+  else if (el.dataset.act === 'action') { t.actions.push({click: 'right', do: 'message', value: ''}); touch(); editor(); const rows = document.querySelectorAll('[data-ak=value]'); rows[rows.length - 1].focus(); }
   else if (el.dataset.ar) { t.actions.splice(+el.dataset.ar, 1); touch(); editor(); }
 });
+let drag = null;
+document.addEventListener('pointerdown', e => {
+  const chip = e.target.closest('.chip'), pin = e.target.closest('.pin');
+  if (chip) { const t = state.things[+chip.dataset.chip]; drag = {el: chip, t, i: +chip.dataset.chip, x: e.clientX, y: e.clientY, from: [...t.offset], moved: false}; }
+  else if (pin) { const t = state.things[+pin.dataset.pin]; drag = {el: pin, t, i: +pin.dataset.pin, x: e.clientX, y: e.clientY, from: [t.x, t.z], pin: true, moved: false}; }
+  if (drag) { drag.el.setPointerCapture(e.pointerId); e.preventDefault(); }
+});
+document.addEventListener('pointermove', e => {
+  if (!drag) return;
+  const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+  if (!drag.moved && Math.hypot(dx, dy) < 4) return;
+  drag.moved = true;
+  const snap = (v, step) => Math.round(v / step) * step;
+  if (drag.pin) {
+    const here = state.things[current];
+    drag.t.x = snap(drag.from[0] + dx / TILE, 0.5); drag.t.z = snap(drag.from[1] + dy / TILE, 0.5);
+    drag.el.style.left = `calc(50% + ${(drag.t.x - (drag.t === here ? drag.from[0] : here.x)) * TILE}px)`;
+    drag.el.style.top = `calc(50% + ${(drag.t.z - (drag.t === here ? drag.from[1] : here.z)) * TILE}px)`;
+    if (drag.t === here) { const x = $('[data-f=x]'), z = $('[data-f=z]'); if (x) x.value = drag.t.x; if (z) z.value = drag.t.z; }
+  } else {
+    drag.t.offset[0] = +snap(drag.from[0] + dx / BLOCK, 0.05).toFixed(2); drag.t.offset[1] = +snap(drag.from[1] - dy / BLOCK, 0.05).toFixed(2);
+    drag.el.style.left = drag.t.offset[0] * BLOCK + 'px'; drag.el.style.bottom = drag.t.offset[1] * BLOCK + 'px';
+    if (drag.i === current) document.querySelectorAll('[data-o]').forEach(input => { input.value = drag.t.offset[+input.dataset.o]; });
+  }
+});
+document.addEventListener('pointerup', () => {
+  if (!drag) return;
+  const d = drag; drag = null;
+  if (d.moved) { touch(); if (d.pin) redraw(); }
+  else if (d.i !== current) { current = d.i; tab = 'what'; list(); editor(); }
+});
+document.addEventListener('dragstart', e => { const item = e.target.closest('.item[data-i]'); if (item) e.dataTransfer.setData('text/plain', item.dataset.i); });
+document.addEventListener('dragover', e => { const st = e.target.closest('.stage'); if (st) { e.preventDefault(); st.classList.add('over'); } });
+document.addEventListener('dragleave', e => { const st = e.target.closest('.stage'); if (st) st.classList.remove('over'); });
+document.addEventListener('drop', e => {
+  const st = e.target.closest('.stage'); if (!st) return;
+  e.preventDefault(); st.classList.remove('over');
+  const d = state.things[+e.dataTransfer.getData('text/plain')];
+  if (!d || d.group !== 'display') return status('only displays can be attached to an NPC', 'bad');
+  const origin = $('.origin', st).getBoundingClientRect();
+  d.attached = st.dataset.stage;
+  d.offset = [+(Math.round((e.clientX - origin.left) / BLOCK / 0.05) * 0.05).toFixed(2), +Math.max(0, Math.round((origin.top - e.clientY) / BLOCK / 0.05) * 0.05).toFixed(2), 0];
+  touch(); list(); editor();
+});
 async function load() {
-  status('Loading…');
+  status('loading');
   try {
     const r = await fetch('/api/state?t=' + encodeURIComponent(token));
-    if (r.status === 403) return status('This link is out of date. Run /npc web in game for a new one.', 'bad');
+    if (r.status === 403) return status('this link is out of date: run /npc web in game for a new one', 'bad');
     state = await r.json(); state.things = state.things.map(t => Object.assign(structuredClone(DEFAULTS), t));
     current = null; dirty = false; $('#save').disabled = true; list(); editor();
-    status(`Cascade ${state.version}: ${state.things.length} NPCs and displays`, 'good');
-  } catch (err) { status('Could not reach the server: ' + err.message, 'bad'); }
+    status(`cascade ${state.version}, ${state.things.length} on this server`, 'good');
+  } catch (err) { status('could not reach the server (' + err.message + ')', 'bad'); }
 }
 $('#save').onclick = async () => {
-  status('Saving…');
+  status('saving');
   try {
     const r = await fetch('/api/save?t=' + encodeURIComponent(token), {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({things: state.things})});
-    if (r.status === 403) return status('This link is out of date. Run /npc web in game for a new one.', 'bad');
+    if (r.status === 403) return status('this link is out of date: run /npc web in game for a new one', 'bad');
     const answer = await r.json();
     if (!answer.ok) return status(answer.error, 'bad');
-    dirty = false; $('#save').disabled = true; status(`Saved: ${answer.count} NPCs and displays are live in game`, 'good');
-  } catch (err) { status('Could not reach the server: ' + err.message, 'bad'); }
+    dirty = false; $('#save').disabled = true; status(`saved, ${answer.count} live in game`, 'good');
+  } catch (err) { status('could not reach the server (' + err.message + ')', 'bad'); }
 };
 $('#reload').onclick = () => { if (!dirty || confirm('Throw away your unsaved changes?')) load(); };
 window.addEventListener('beforeunload', e => { if (dirty) e.preventDefault(); });

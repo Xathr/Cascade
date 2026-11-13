@@ -1,5 +1,7 @@
 # Cascade
 
+<img src="market/logo.png" width="96" align="right" alt="Cascade logo">
+
 NPCs and displays for [Pumpkin](https://github.com/Pumpkin-MC/Pumpkin) servers.
 
 - **NPCs** can be anything: a player with a skin, any mob, a block or an item.
@@ -49,7 +51,15 @@ A floating title, a turning item and some sparkle:
 
 ## The web editor
 
-Type `/npc web` (or `/display web`) and click **open the editor**. The page lists every NPC and display; pick one to change its kind, text (with a live preview of the colours), position, looks, gear and click actions, or to attach a display to an NPC. **Save to server** puts the changes in the game at once.
+Type `/npc web` (or `/display web`) and click **open the editor**.
+
+![The web editor](market/screenshot-editor.png)
+
+- **Left:** every NPC and display. Pick one to work on it.
+- **Middle:** the NPC from the side, with the displays attached to it. Drag a display to move it; drop one from the list onto the NPC to attach it. For something that stands on its own, the middle is a map from above: drag to move it.
+- **Right:** its settings: kind, text with a live preview of the colours, position, looks, gear and click actions.
+
+**Save to server** puts the changes in the game at once.
 
 - The link holds a secret that changes every time the server starts, so only someone you give the link to can use the editor. Anyone with the link can change your NPCs and displays, so don't post it.
 - The editor uses port 8787. Open that port on your host or firewall if you connect from another machine.
@@ -153,6 +163,8 @@ Everything is saved in `plugins/data/cascade/things.json` each time you change s
 - **Far away:** an NPC or display is only placed in the world while a player is within 48 blocks, and taken away when everyone is more than 64 blocks off.
 - **Blocks:** a block NPC or display snaps to the block grid when created.
 - NPCs don't move, can't be hurt and make no sound.
+- **Daylight:** zombies, skeletons and their kin would stand burning in the sun. Cascade puts a stone button on their head, which is what stops it; choose your own head gear with `/npc equip <id> head <item>` to replace it.
+- **Baby and sneak:** `/npc baby` and `/npc sneak` are saved, but Pumpkin 0.2.2 does not show either to players yet.
 
 ## Build from source
 

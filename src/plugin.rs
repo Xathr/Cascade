@@ -27,6 +27,8 @@ const VERSION: &str = env!("CARGO_PKG_VERSION");
 const BUILD_WITHIN: f64 = 48.0;
 const KEEP_WITHIN: f64 = 64.0;
 const TAG: (&str, &str) = ("cascade", "thing");
+/// Mobs the sun sets alight.
+const BURNS_IN_DAYLIGHT: &[&str] = &["zombie", "zombie_villager", "drowned", "skeleton", "stray", "bogged", "parched", "phantom", "zombie_horse", "skeleton_horse"];
 
 /// What a thing is made of while it is in the world.
 struct Live {
@@ -182,6 +184,11 @@ fn build(server: &Server, thing: &Thing) -> Option<Live> {
                     if let Some(slot) = slot_of(slot) {
                         living.set_equipment(slot, Some(ItemStack::new(item, 1)));
                     }
+                }
+                // Something on the head is what keeps these mobs from catching fire in daylight.
+                // With no head gear chosen, a stone button does it: the smallest thing there is.
+                if thing.kind == Kind::Mob && BURNS_IN_DAYLIGHT.contains(&thing.what.as_str()) && !thing.equipment.contains_key("head") {
+                    living.set_equipment(EquipmentSlot::Head, Some(ItemStack::new("stone_button", 1)));
                 }
             }
             entity.set_rotation(thing.yaw, thing.pitch);
@@ -380,6 +387,19 @@ fn every_tick(server: Server) {
                 let s = thing.spread as f64;
                 world.spawn_particle(particle, (thing.x, thing.y, thing.z), (s, s, s), thing.speed, thing.count);
             }
+        }
+        // Zombies, skeletons and the like catch fire in daylight. An NPC can't be hurt, but it
+        // would stand there in flames, so any fire is put out at once.
+        if thing.kind == Kind::Mob {
+            LIVE.with(|l| {
+                if let Some(body) = l.borrow().get(&key).and_then(|live| live.body.as_ref()) {
+                    if body.is_on_fire() || body.get_fire_ticks() > 0 || body.has_visual_fire() {
+                        body.set_fire_ticks(0);
+                        body.set_on_fire(false);
+                        body.set_visual_fire(false);
+                    }
+                }
+            });
         }
         if tick % 2 != 0 {
             continue;
