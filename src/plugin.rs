@@ -767,7 +767,7 @@ impl Plugin for Cascade {
 
         let _ = context.register_permission(&Permission { node: "cascade:admin".into(), description: "Create and change NPCs and displays".into(), default: PermissionDefault::Op(PermissionLevel::Two), children: vec![] });
         context.register_command(command_tree(Group::Npc, &["npc".to_string()]), "admin");
-        context.register_command(command_tree(Group::Display, &["display".to_string(), "holo".to_string()]), "admin");
+        context.register_command(command_tree(Group::Display, &["display".to_string()]), "admin");
         context.register_event_handler::<PlayerInteractEntityEvent, _>(OnInteract, EventPriority::High, true)?;
         context.register_event_handler::<PlayerInteractUnknownEntityEvent, _>(OnInteractUnknown, EventPriority::High, true)?;
         context.register_event_handler::<EntityDamageByEntityEvent, _>(OnDamage, EventPriority::High, true)?;

@@ -3,7 +3,7 @@
 NPCs and displays for [Pumpkin](https://github.com/Pumpkin-MC/Pumpkin) servers.
 
 - **NPCs** can be anything: a player with a skin, any mob, a block or an item.
-- **Displays** are floating text, items, blocks and streams of particles.
+- **Displays** are text displays, item displays, block displays and streams of particles.
 - Both can carry a name above them, glow, be scaled, and **do things when clicked**: send a message, run a command, play a sound, teleport the player.
 
 Everything is made in game with `/npc` and `/display`, and saved in one file you can also edit by hand.
@@ -69,7 +69,7 @@ A floating title, a turning item and some sparkle:
 | `action ...`, `cooldown`, `permission` | See [Clicks](#clicks) |
 | `reload` | Read `things.json` again |
 
-## Displays: `/display` (or `/holo`)
+## Displays: `/display`
 
 | Command | What it does |
 |---|---|
