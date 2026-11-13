@@ -47,12 +47,12 @@ A floating title, a turning item and some sparkle:
 
 ## NPCs: `/npc`
 
-`<id>` is a short name you choose (letters, numbers, `-` and `_`).
+`<id>` is a short name you choose (letters, numbers, `-` and `_`). Press Tab as you type: the commands, mob types, particles, slots and other fixed choices complete themselves. Names of your NPCs, items and blocks are typed by hand.
 
 | Command | What it does |
 |---|---|
 | `create <id> player [skin]` | A player-shaped NPC, wearing the skin of the named player |
-| `create <id> <mob>` | Any mob: `villager`, `zombie`, `iron golem`, `cat`, ... |
+| `create <id> <mob>` | Any mob: `villager`, `zombie`, `iron_golem`, `cat`, ... |
 | `create <id> block <block>` | A block; leave the name out to use the one in your hand |
 | `create <id> item <item>` | An item, likewise |
 | `remove <id>` | Delete it |
@@ -120,6 +120,8 @@ In a value, `%player%` is the name of the player who clicked and `%id%` the thin
 Everything is saved in `plugins/data/cascade/things.json` each time you change something. You can edit it by hand and run `/npc reload`. Settings you leave out take their usual value.
 
 ## Things to know
+
+- **Colours in the console:** `plugins/data/cascade/config.toml` has `console_colors = true`; set it to `false` for plain text.
 
 - **Left clicks:** Pumpkin 0.2.2 only reports a left click on mob NPCs. On players, blocks, items and text, use `right` or `any`; the command reminds you.
 - **Skins:** the game client looks a skin up from the player name, so the name must be a real account.

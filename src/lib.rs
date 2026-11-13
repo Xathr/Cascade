@@ -2,6 +2,8 @@
 
 #![allow(non_snake_case)] // the library is named Cascade so the plugin file is Cascade.wasm
 
+pub mod banner;
+pub mod color;
 pub mod commands;
 pub mod model;
 pub mod names;

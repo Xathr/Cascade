@@ -65,6 +65,19 @@ fn lines_of(text: &str) -> Vec<String> {
     text.split('|').map(|l| l.trim().to_string()).collect()
 }
 
+/// Subcommands that take no id.
+pub const PLAIN_SUBS: &[&str] = &["help", "list", "reload"];
+/// Subcommands that name a thing first.
+pub const ID_SUBS: &[&str] = &[
+    "remove", "info", "tp", "movehere", "rotate", "text", "addline", "setline", "removeline", "look", "glow", "scale", "baby", "sneak", "invisible", "skin", "type", "equip", "item", "block", "particle", "billboard", "spin", "background", "shadow", "seethrough", "width", "align", "range", "count", "interval", "spread", "speed", "action", "cooldown",
+    "permission",
+];
+
+/// Mob types an NPC can be, for the command's list of choices.
+pub fn body_types() -> Vec<&'static str> {
+    ENTITY_TYPES.iter().copied().filter(|t| !NOT_BODIES.contains(t)).collect()
+}
+
 pub fn help(group: Group) -> Vec<String> {
     let c = group.command();
     let mut lines = vec![format!("&b/{c} &fcommands &7(<id> is a short name you choose)")];
@@ -579,6 +592,21 @@ mod tests {
         assert_eq!((s.things[0].cooldown, s.things[0].permission.as_str()), (3.0, "shop.use"));
         ok(&mut s, Group::Npc, "action guide clear");
         assert!(s.things[0].actions.is_empty());
+    }
+
+    #[test]
+    fn every_listed_subcommand_is_understood() {
+        let mut s = Store::default();
+        ok(&mut s, Group::Npc, "create guide villager");
+        for sub in ID_SUBS {
+            let out = run(&mut s.clone(), Group::Npc, &format!("{sub} guide"), &Me(true));
+            assert!(!out.lines.iter().any(|l| l.contains("there is no /npc")), "{sub}: {:?}", out.lines);
+        }
+        for sub in PLAIN_SUBS {
+            ok(&mut s, Group::Npc, sub);
+        }
+        let bodies = body_types();
+        assert!(bodies.contains(&"villager") && !bodies.contains(&"text_display") && !bodies.contains(&"player"));
     }
 
     #[test]

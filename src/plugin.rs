@@ -1,6 +1,7 @@
 //! The plugin: builds NPCs and displays in the world out of the saved list, keeps them facing
 //! players, turning and sparkling, and carries out their actions when clicked.
 
+use crate::color;
 use crate::commands::{self, Env};
 use crate::model::*;
 use crate::names;
@@ -48,29 +49,32 @@ thread_local! {
     static SKINNED: RefCell<HashMap<String, (i32, Vec<String>)>> = RefCell::new(HashMap::new());
 }
 
+fn tagged(msg: &str) -> String {
+    format!("{} {msg}", color::tag("[Cascade]"))
+}
 fn info(msg: &str) {
-    pumpkin_plugin_api::logging::log(pumpkin_plugin_api::logging::LogLevel::Info, &format!("\x1b[96m[Cascade]\x1b[0m {msg}"));
+    pumpkin_plugin_api::logging::log(pumpkin_plugin_api::logging::LogLevel::Info, &tagged(msg));
 }
 fn warn(msg: &str) {
-    pumpkin_plugin_api::logging::log(pumpkin_plugin_api::logging::LogLevel::Warn, &format!("\x1b[96m[Cascade]\x1b[0m {msg}"));
+    pumpkin_plugin_api::logging::log(pumpkin_plugin_api::logging::LogLevel::Warn, &tagged(&color::warn(msg)));
+}
+
+/// Shows the sender a line written with `&` codes: console colours in the console, the same
+/// colours as chat colours in game, each after the plugin's tag.
+fn say(sender: &CommandSender, line: &str) {
+    if sender.is_console() {
+        sender.send_message(TextComponent::text(&tagged(&color::styled(line))));
+    } else {
+        let coloured = color::with_colours(|| tagged(&color::styled(line)));
+        match TextComponent::from_json(&color::chat_json(&coloured)) {
+            Ok(message) => sender.send_message(message),
+            Err(_) => sender.send_message(TextComponent::text(&color::strip(&coloured))),
+        }
+    }
 }
 
 fn component(text: &str) -> TextComponent {
     TextComponent::from_legacy_string_with_code(text, '&')
-}
-
-/// Text without `&` colour codes, for the console.
-fn plain(text: &str) -> String {
-    let mut out = String::new();
-    let mut chars = text.chars().peekable();
-    while let Some(c) = chars.next() {
-        if c == '&' && chars.peek().is_some_and(|n| n.is_ascii_alphanumeric()) {
-            chars.next();
-        } else {
-            out.push(c);
-        }
-    }
-    out
 }
 
 fn strip_ns(name: &str) -> String {
@@ -560,37 +564,44 @@ impl Env for Sender<'_> {
     }
 }
 
-/// `/npc ...` and `/display ...`.
+/// One word of a command as it is typed: a fixed word, or something the player fills in.
+#[derive(Clone, Copy)]
+enum Part {
+    Word(&'static str),
+    Arg(&'static str),
+}
+
+/// One branch of `/npc` or `/display`: the words that lead to it.
 struct ThingCommand {
     group: Group,
-    takes_args: bool,
+    path: Vec<Part>,
+}
+
+fn text_arg(args: &ConsumedArgs, name: &str) -> String {
+    match args.get_value(name) {
+        Arg::Simple(text) | Arg::Msg(text) => text,
+        _ => String::new(),
+    }
 }
 
 impl CommandHandler for ThingCommand {
     fn handle(&self, sender: CommandSender, server: Server, args: ConsumedArgs) -> Result<i32, CommandError> {
-        let input = if self.takes_args {
-            match args.get_value("args") {
-                Arg::Simple(text) | Arg::Msg(text) => text,
-                _ => String::new(),
-            }
-        } else {
-            String::new()
-        };
-        let console = sender.is_console();
-        let say = |line: &str| {
-            if console {
-                sender.send_message(TextComponent::text(&format!("\x1b[96m[Cascade]\x1b[0m {}", plain(line))));
-            } else {
-                sender.send_message(component(&format!("&b[Cascade] &f{line}")));
-            }
-        };
+        let input = self
+            .path
+            .iter()
+            .map(|part| match part {
+                Part::Word(word) => word.to_string(),
+                Part::Arg(name) => text_arg(&args, name),
+            })
+            .collect::<Vec<_>>()
+            .join(" ");
         let Some((before, out)) = STORE.with(|s| {
             let mut store = s.try_borrow_mut().ok()?;
             let before = store.clone();
             let out = commands::run(&mut store, self.group, &input, &Sender(&sender));
             Some((before != *store, out))
         }) else {
-            say("&cbusy; try again in a moment");
+            say(&sender, "&cbusy; try again in a moment");
             return Ok(0);
         };
         if before {
@@ -603,9 +614,9 @@ impl CommandHandler for ThingCommand {
             match load() {
                 Ok(n) => {
                     unbuild_all();
-                    say(&format!("&fread things.json again: &b{n}&f NPCs and displays"));
+                    say(&sender, &format!("&fread things.json again: &b{n}&f NPCs and displays"));
                 }
-                Err(e) => say(&format!("&c{e}")),
+                Err(e) => say(&sender, &format!("&c{e}")),
             }
         }
         if !out.changed.is_empty() || out.reload {
@@ -614,11 +625,101 @@ impl CommandHandler for ThingCommand {
         if let (Some((world, x, y, z)), Some(player)) = (&out.teleport, sender.as_player()) {
             match world_named(&server, world) {
                 Some(world) => player.teleport((*x, *y, *z), None, None, world),
-                None => say(&format!("&cthe world {world} is not loaded")),
+                None => say(&sender, &format!("&cthe world {world} is not loaded")),
             }
         }
-        out.lines.iter().for_each(|l| say(l));
+        out.lines.iter().for_each(|l| say(&sender, l));
         Ok(1)
+    }
+}
+
+/// What can follow a point in a command: fixed words the game completes with Tab, or a value.
+enum Spec {
+    Word(&'static str, Vec<Spec>),
+    /// One word of the player's own, such as an id.
+    Name(&'static str, Vec<Spec>),
+    /// The rest of the line.
+    Rest,
+}
+
+fn words(list: &[&'static str], then: fn() -> Vec<Spec>) -> Vec<Spec> {
+    list.iter().map(|w| Spec::Word(w, then())).collect()
+}
+
+fn node(group: Group, spec: &Spec, path: &[Part]) -> CommandNode {
+    let (start, part, children): (CommandNode, Part, &[Spec]) = match spec {
+        Spec::Word(word, children) => (CommandNode::literal(word), Part::Word(word), children),
+        Spec::Name(name, children) => (CommandNode::argument(name, &ArgumentType::String(StringType::SingleWord)), Part::Arg(name), children),
+        Spec::Rest => (CommandNode::argument("rest", &ArgumentType::String(StringType::Greedy)), Part::Arg("rest"), &[]),
+    };
+    let mut path = path.to_vec();
+    path.push(part);
+    let mut built = start.execute(ThingCommand { group, path: path.clone() });
+    for child in children {
+        built = built.then(node(group, child, &path));
+    }
+    built
+}
+
+/// What follows `/npc <sub> <id>`.
+fn after_id(sub: &str) -> Vec<Spec> {
+    let none = Vec::new;
+    let rest = || vec![Spec::Rest];
+    match sub {
+        "look" => vec![Spec::Word("on", rest()), Spec::Word("off", none())],
+        "glow" | "baby" | "sneak" | "invisible" | "shadow" | "seethrough" => words(&["on", "off"], none),
+        "billboard" => words(BILLBOARDS, none),
+        "align" => words(ALIGNMENTS, none),
+        "background" | "permission" | "text" => vec![Spec::Word("none", none()), Spec::Rest],
+        "equip" => words(SLOTS, || vec![Spec::Word("hand", Vec::new()), Spec::Word("none", Vec::new()), Spec::Rest]),
+        "action" => vec![
+            Spec::Word("add", words(&["any", "left", "right"], || DO_NAMES.iter().map(|(name, _)| Spec::Word(name, vec![Spec::Rest])).collect())),
+            Spec::Word("list", none()),
+            Spec::Word("clear", none()),
+            Spec::Word("remove", rest()),
+        ],
+        "type" => commands::body_types().into_iter().map(|t| Spec::Word(t, Vec::new())).collect(),
+        "particle" => words(names::PARTICLES, none),
+        "remove" | "info" | "tp" | "movehere" => none(),
+        _ => rest(),
+    }
+}
+
+/// `/npc` or `/display` as a tree of words, so the game can complete them with Tab. Pumpkin
+/// 0.2.2 crashes when a plugin answers a completion request itself, and does not hand a plugin
+/// the game's own item and block arguments, so only fixed words are offered: ids, items and
+/// blocks are typed by hand.
+fn command_tree(group: Group, names: &[String]) -> Command {
+    let mut command = Command::new(names, if group == Group::Npc { "Create and change NPCs" } else { "Create and change displays" });
+    let mut top: Vec<Spec> = commands::PLAIN_SUBS.iter().map(|sub| Spec::Word(sub, Vec::new())).collect();
+    let kinds = match group {
+        Group::Npc => {
+            let mut kinds = vec![Spec::Word("player", vec![Spec::Rest]), Spec::Word("block", vec![Spec::Rest]), Spec::Word("item", vec![Spec::Rest])];
+            kinds.extend(commands::body_types().into_iter().map(|t| Spec::Word(t, Vec::new())));
+            kinds
+        }
+        Group::Display => vec![Spec::Word("text", vec![Spec::Rest]), Spec::Word("item", vec![Spec::Rest]), Spec::Word("block", vec![Spec::Rest]), Spec::Word("particle", words(names::PARTICLES, Vec::new))],
+    };
+    top.push(Spec::Word("create", vec![Spec::Name("id", kinds)]));
+    top.extend(commands::ID_SUBS.iter().map(|sub| Spec::Word(sub, vec![Spec::Name("id", after_id(sub))])));
+    for spec in &top {
+        command = command.then(node(group, spec, &[]));
+    }
+    command.execute(ThingCommand { group, path: vec![Part::Word("help")] })
+}
+
+/// `console_colors` from config.toml, which is written with its default the first time.
+fn console_colours(folder: &str) -> bool {
+    let path = format!("{folder}/config.toml");
+    match std::fs::read_to_string(&path) {
+        Ok(text) => !text.lines().any(|l| {
+            let l = l.split('#').next().unwrap_or("").replace(' ', "");
+            l == "console_colors=false"
+        }),
+        Err(_) => {
+            let _ = std::fs::write(&path, "# cascade settings\n\n# Colours in the console, like Pumpkin's own output. Set to false for plain text.\nconsole_colors = true\n");
+            true
+        }
     }
 }
 
@@ -646,6 +747,7 @@ impl Plugin for Cascade {
     fn on_load(&self, context: Context) -> pumpkin_plugin_api::Result<()> {
         let data = context.get_data_folder();
         let _ = std::fs::create_dir_all(&data);
+        color::set_enabled(console_colours(&data));
         FOLDER.with(|f| *f.borrow_mut() = data);
         let count = match load() {
             Ok(n) => n,
@@ -654,15 +756,18 @@ impl Plugin for Cascade {
                 0
             }
         };
-        info(&format!("\x1b[1mcascade\x1b[0m v{VERSION}  {count} NPCs and displays  (/npc help, /display help)"));
+        let (npcs, displays) = STORE.with(|s| {
+            let store = s.borrow();
+            (store.things.iter().filter(|t| t.group == Group::Npc).count(), store.things.iter().filter(|t| t.group == Group::Display).count())
+        });
+        let _ = count;
+        for line in crate::banner::lines(&crate::banner::Info { version: VERSION, npcs, displays, file: "plugins/data/cascade/things.json" }) {
+            info(&line);
+        }
 
         let _ = context.register_permission(&Permission { node: "cascade:admin".into(), description: "Create and change NPCs and displays".into(), default: PermissionDefault::Op(PermissionLevel::Two), children: vec![] });
-        for (group, names) in [(Group::Npc, vec!["npc".to_string()]), (Group::Display, vec!["display".to_string(), "holo".to_string()])] {
-            let command = Command::new(&names, if group == Group::Npc { "Create and change NPCs" } else { "Create and change displays" })
-                .then(CommandNode::argument("args", &ArgumentType::String(StringType::Greedy)).execute(ThingCommand { group, takes_args: true }))
-                .execute(ThingCommand { group, takes_args: false });
-            context.register_command(command, "admin");
-        }
+        context.register_command(command_tree(Group::Npc, &["npc".to_string()]), "admin");
+        context.register_command(command_tree(Group::Display, &["display".to_string(), "holo".to_string()]), "admin");
         context.register_event_handler::<PlayerInteractEntityEvent, _>(OnInteract, EventPriority::High, true)?;
         context.register_event_handler::<PlayerInteractUnknownEntityEvent, _>(OnInteractUnknown, EventPriority::High, true)?;
         context.register_event_handler::<EntityDamageByEntityEvent, _>(OnDamage, EventPriority::High, true)?;
