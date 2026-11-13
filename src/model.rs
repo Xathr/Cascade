@@ -159,6 +159,10 @@ pub struct Thing {
     pub interval: u32,
     pub spread: f32,
     pub speed: f32,
+    /// For a display: the id of the NPC it is attached to, or empty. An attached display is
+    /// placed at the NPC plus `offset`, and goes where the NPC goes.
+    pub attached: String,
+    pub offset: [f64; 3],
 }
 
 impl Default for Thing {
@@ -198,6 +202,8 @@ impl Default for Thing {
             interval: 10,
             spread: 0.3,
             speed: 0.0,
+            attached: String::new(),
+            offset: [0.0; 3],
         }
     }
 }
@@ -208,7 +214,7 @@ impl Thing {
         matches!(self.kind, Kind::Block | Kind::Item | Kind::Text)
     }
 
-    /// How high above its feet the name sits, before scaling.
+    /// How high above its feet a display attached to this sits by default.
     pub fn label_height(&self) -> f64 {
         let base = match self.kind {
             Kind::Player => 2.05,
@@ -229,7 +235,11 @@ impl Thing {
 
     pub fn summary(&self) -> String {
         let what = if self.what.is_empty() { String::new() } else { format!(" {}", self.what) };
-        format!("{} ({}{}) at {:.1} {:.1} {:.1} in {}", self.id, self.kind.name(), what, self.x, self.y, self.z, self.world)
+        if self.attached.is_empty() {
+            format!("{} ({}{}) at {:.1} {:.1} {:.1} in {}", self.id, self.kind.name(), what, self.x, self.y, self.z, self.world)
+        } else {
+            format!("{} ({}{}) attached to {}, {:+.2} {:+.2} {:+.2} from it", self.id, self.kind.name(), what, self.attached, self.offset[0], self.offset[1], self.offset[2])
+        }
     }
 }
 
@@ -260,6 +270,40 @@ impl Store {
         self.things.retain(|t| !(t.group == group && t.id == id));
         self.things.len() != before
     }
+    /// `thing` as it stands in the world: an attached display is at its NPC plus its offset.
+    pub fn placed(&self, thing: &Thing) -> Thing {
+        let mut placed = thing.clone();
+        if let Some(npc) = (!thing.attached.is_empty()).then(|| self.get(Group::Npc, &thing.attached)).flatten() {
+            placed.world = npc.world.clone();
+            (placed.x, placed.y, placed.z) = (npc.x + thing.offset[0], npc.y + thing.offset[1], npc.z + thing.offset[2]);
+        }
+        placed
+    }
+
+    /// Every thing as it stands in the world.
+    pub fn all_placed(&self) -> Vec<Thing> {
+        self.things.iter().map(|t| self.placed(t)).collect()
+    }
+
+    /// NPCs used to carry their own name. Each such name becomes a text display attached to the
+    /// NPC, called `<npc>-name`. Returns how many were made.
+    pub fn names_to_displays(&mut self) -> usize {
+        let mut made = Vec::new();
+        for npc in self.things.iter_mut().filter(|t| t.group == Group::Npc && !t.lines.is_empty()) {
+            let lines = std::mem::take(&mut npc.lines);
+            let height = npc.label_height() + 0.1;
+            let at_middle = if npc.kind == Kind::Block { 0.5 * npc.scale as f64 } else { 0.0 };
+            made.push(Thing { id: format!("{}-name", npc.id), group: Group::Display, kind: Kind::Text, lines, attached: npc.id.clone(), offset: [at_middle, height, at_middle], world: npc.world.clone(), x: npc.x, y: npc.y, z: npc.z, ..Thing::default() });
+        }
+        let count = made.len();
+        for display in made {
+            if self.get(Group::Display, &display.id).is_none() {
+                self.things.push(display);
+            }
+        }
+        count
+    }
+
     pub fn to_json(&self) -> String {
         serde_json::to_string_pretty(self).unwrap_or_else(|_| "{}".into())
     }

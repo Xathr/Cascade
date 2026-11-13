@@ -31,7 +31,6 @@ const TAG: (&str, &str) = ("cascade", "thing");
 /// What a thing is made of while it is in the world.
 struct Live {
     body: Option<Entity>,
-    label: Option<Entity>,
     hit: Option<Entity>,
     /// The entity numbers a click can arrive on.
     ids: Vec<i32>,
@@ -154,7 +153,7 @@ fn build(server: &Server, thing: &Thing) -> Option<Live> {
     let key = key(thing.group, &thing.id);
     let pos = (thing.x, thing.y, thing.z);
     let scale = thing.scale.max(0.05);
-    let mut live = Live { body: None, label: None, hit: None, ids: Vec::new(), yaw: thing.yaw };
+    let mut live = Live { body: None, hit: None, ids: Vec::new(), yaw: thing.yaw };
     // what a click lands on when the body itself can't be clicked
     let mut hit_box: Option<((f64, f64, f64), f32, f32)> = None;
     match thing.kind {
@@ -222,13 +221,6 @@ fn build(server: &Server, thing: &Thing) -> Option<Live> {
         }
         Kind::Particle => {}
     }
-    if thing.kind != Kind::Text && !thing.lines.is_empty() {
-        let above = (thing.x + if thing.kind == Kind::Block { 0.5 * scale as f64 } else { 0.0 }, thing.y + thing.label_height() + 0.1, thing.z + if thing.kind == Kind::Block { 0.5 * scale as f64 } else { 0.0 });
-        let label = text_display(&world, above, &thing.lines, thing, false);
-        tag(&label, &key);
-        display_settings(&label, thing, "center", 1.0);
-        live.label = Some(label);
-    }
     if let (Some(shape), false) = (hit_box, thing.actions.is_empty()) {
         live.hit = Some(click_box(&world, shape, &key));
     }
@@ -287,7 +279,7 @@ fn skin_pass(things: &[Thing], near: &[(String, f64, f64, f64, Player)]) {
 }
 
 fn unbuild(live: Live) {
-    for entity in [live.body, live.label, live.hit].into_iter().flatten() {
+    for entity in [live.body, live.hit].into_iter().flatten() {
         entity.remove();
     }
 }
@@ -317,7 +309,7 @@ fn distance2(thing: &Thing, at: &(String, f64, f64, f64, Player)) -> Option<f64>
 
 /// Builds things players have come near, and takes away those everyone has left.
 fn build_pass(server: &Server, near: &[(String, f64, f64, f64, Player)]) {
-    let things: Vec<Thing> = STORE.with(|s| s.borrow().things.clone());
+    let things: Vec<Thing> = STORE.with(|s| s.borrow().all_placed());
     for thing in &things {
         let key = key(thing.group, &thing.id);
         let closest = near.iter().filter_map(|p| distance2(thing, p)).fold(f64::INFINITY, f64::min);
@@ -341,7 +333,7 @@ fn build_pass(server: &Server, near: &[(String, f64, f64, f64, Player)]) {
 /// Removes entities this plugin made in an earlier run that are not in use now (after a crash,
 /// say), so nothing is left standing twice.
 fn sweep(server: &Server) {
-    let mine: Vec<i32> = LIVE.with(|l| l.borrow().values().flat_map(|live| [&live.body, &live.label, &live.hit].into_iter().flatten().map(|e| e.get_id() as i32).collect::<Vec<_>>()).collect());
+    let mine: Vec<i32> = LIVE.with(|l| l.borrow().values().flat_map(|live| [&live.body, &live.hit].into_iter().flatten().map(|e| e.get_id() as i32).collect::<Vec<_>>()).collect());
     for world in server.get_all_worlds() {
         for entity in world.get_entities() {
             if entity.has_custom_data(TAG.0, TAG.1) && !mine.contains(&(entity.get_id() as i32)) {
@@ -357,7 +349,7 @@ fn every_tick(server: Server) {
         *t += 1;
         *t
     });
-    let things: Vec<Thing> = STORE.with(|s| s.borrow().things.clone());
+    let things: Vec<Thing> = STORE.with(|s| s.borrow().all_placed());
     if things.is_empty() && LIVE.with(|l| l.borrow().is_empty()) {
         return;
     }
@@ -537,8 +529,15 @@ fn load() -> Result<usize, String> {
         Ok(text) => Store::from_json(&text).map_err(|e| format!("things.json has a mistake ({e}); nothing was changed"))?,
         Err(_) => Store::default(),
     };
+    let mut store = store;
+    // names NPCs carried in older versions become text displays attached to them
+    let moved = store.names_to_displays();
     let n = store.things.len();
     STORE.with(|s| *s.borrow_mut() = store);
+    if moved > 0 {
+        save();
+        info(&format!("{moved} NPC name{} became text display{} attached to the NPC (/display list)", if moved == 1 { "" } else { "s" }, if moved == 1 { "" } else { "s" }));
+    }
     Ok(n)
 }
 
@@ -680,7 +679,8 @@ fn after_id(sub: &str) -> Vec<Spec> {
         ],
         "type" => commands::body_types().into_iter().map(|t| Spec::Word(t, Vec::new())).collect(),
         "particle" => words(names::PARTICLES, none),
-        "remove" | "info" | "tp" | "movehere" => none(),
+        "attach" => vec![Spec::Name("npc", vec![Spec::Rest])],
+        "remove" | "info" | "tp" | "movehere" | "detach" => none(),
         _ => rest(),
     }
 }
@@ -701,7 +701,7 @@ fn command_tree(group: Group, names: &[String]) -> Command {
         Group::Display => vec![Spec::Word("text", vec![Spec::Rest]), Spec::Word("item", vec![Spec::Rest]), Spec::Word("block", vec![Spec::Rest]), Spec::Word("particle", words(names::PARTICLES, Vec::new))],
     };
     top.push(Spec::Word("create", vec![Spec::Name("id", kinds)]));
-    top.extend(commands::ID_SUBS.iter().map(|sub| Spec::Word(sub, vec![Spec::Name("id", after_id(sub))])));
+    top.extend(commands::id_subs(group).into_iter().map(|sub| Spec::Word(sub, vec![Spec::Name("id", after_id(sub))])));
     for spec in &top {
         command = command.then(node(group, spec, &[]));
     }

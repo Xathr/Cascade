@@ -4,7 +4,8 @@ NPCs and displays for [Pumpkin](https://github.com/Pumpkin-MC/Pumpkin) servers.
 
 - **NPCs** can be anything: a player with a skin, any mob, a block or an item.
 - **Displays** are text displays, item displays, block displays and streams of particles.
-- Both can carry a name above them, glow, be scaled, and **do things when clicked**: send a message, run a command, play a sound, teleport the player.
+- A display can be **attached to an NPC**, such as a name above its head, and goes wherever the NPC goes.
+- Both can glow, be scaled, and **do things when clicked**: send a message, run a command, play a sound, teleport the player.
 
 Everything is made in game with `/npc` and `/display`, and saved in one file you can also edit by hand.
 
@@ -24,9 +25,10 @@ Stand where the NPC should be and type:
 
 ```
 /npc create guide villager
-/npc text guide &aGuide|&7Right-click me
 /npc action guide add right message &aWelcome, %player%!
 /npc action guide add right sound entity.villager.yes
+/display create guide-name text &aGuide|&7Right-click me
+/display attach guide-name guide
 ```
 
 A player NPC with a skin, holding a sword, that sends players to spawn:
@@ -59,8 +61,6 @@ A floating title, a turning item and some sparkle:
 | `list`, `info <id>` | See what exists |
 | `movehere <id>`, `tp <id>` | Bring it to you, or go to it |
 | `rotate <id> <yaw> [pitch]` | Turn it |
-| `text <id> <line\|line\|...>` | The name above it; `\|` starts a new line, `&` colours, `none` to clear |
-| `addline <id> <text>`, `setline <id> <n> <text>`, `removeline <id> <n>` | Edit one line |
 | `look <id> [on\|off] [blocks]` | Face the nearest player within that many blocks (on for players and mobs) |
 | `skin <id> <player name>` | Change a player NPC's skin |
 | `type <id> <mob>` | Turn it into another mob |
@@ -77,7 +77,11 @@ A floating title, a turning item and some sparkle:
 | `create <id> item <item>` | A floating item, turning slowly |
 | `create <id> block <block>` | A block that is not really there |
 | `create <id> particle <name>` | A stream of particles: `flame`, `heart`, `end_rod`, ... |
-| `text`, `addline`, `setline`, `removeline` | As for NPCs |
+| `text <id> <line\|line\|...>` | Set the text; `\|` starts a new line, `&` colours |
+| `addline <id> <text>`, `setline <id> <n> <text>`, `removeline <id> <n>` | Edit one line |
+| `attach <id> <npc> [height]` | Fix the display to an NPC, above its head unless you give a height |
+| `detach <id>` | Let it stand on its own again, where it is |
+| `offset <id> <x> <y> <z>` | Where an attached display sits, measured from its NPC |
 | `item <id> <item>`, `block <id> <block>`, `particle <id> <name>` | Change what is shown |
 | `scale <id> <n>`, `glow <id>` | Size, outline |
 | `billboard <id> <center\|fixed\|vertical\|horizontal>` | How it turns to face the viewer |
@@ -89,6 +93,17 @@ A floating title, a turning item and some sparkle:
 | `remove`, `list`, `info`, `movehere`, `tp`, `rotate`, `action`, `cooldown`, `permission`, `reload` | As for NPCs |
 
 Display settings work on block and item NPCs too, and NPC settings on displays: they are the same thing underneath, kept in two lists.
+
+### Names and other things on an NPC
+
+An NPC has no text of its own. Make a text display and attach it:
+
+```
+/display create guide-name text &aGuide|&7Right-click me
+/display attach guide-name guide
+```
+
+Any display can be attached: a turning item above a shopkeeper, particles around a wizard. Attached displays move with the NPC and are left standing, detached, if the NPC is removed. Names saved on NPCs by earlier versions are turned into attached text displays called `<npc>-name` the first time the plugin loads them.
 
 ## Clicks
 

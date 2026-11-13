@@ -67,11 +67,21 @@ fn lines_of(text: &str) -> Vec<String> {
 
 /// Subcommands that take no id.
 pub const PLAIN_SUBS: &[&str] = &["help", "list", "reload"];
-/// Subcommands that name a thing first.
-pub const ID_SUBS: &[&str] = &[
-    "remove", "info", "tp", "movehere", "rotate", "text", "addline", "setline", "removeline", "look", "glow", "scale", "baby", "sneak", "invisible", "skin", "type", "equip", "item", "block", "particle", "billboard", "spin", "background", "shadow", "seethrough", "width", "align", "range", "count", "interval", "spread", "speed", "action", "cooldown",
-    "permission",
+/// Subcommands that name a thing first, for either group.
+const SHARED_SUBS: &[&str] = &[
+    "remove", "info", "tp", "movehere", "rotate", "look", "glow", "scale", "baby", "sneak", "invisible", "skin", "type", "equip", "item", "block", "particle", "billboard", "spin", "background", "shadow", "seethrough", "width", "align", "range", "count", "interval", "spread", "speed", "action", "cooldown", "permission",
 ];
+/// Subcommands only displays have: their text, and being attached to an NPC.
+const DISPLAY_SUBS: &[&str] = &["text", "addline", "setline", "removeline", "attach", "detach", "offset"];
+
+/// The subcommands of `/npc` or `/display` that name a thing first.
+pub fn id_subs(group: Group) -> Vec<&'static str> {
+    let mut subs = SHARED_SUBS.to_vec();
+    if group == Group::Display {
+        subs.extend(DISPLAY_SUBS);
+    }
+    subs
+}
 
 /// Mob types an NPC can be, for the command's list of choices.
 pub fn body_types() -> Vec<&'static str> {
@@ -91,8 +101,6 @@ pub fn help(group: Group) -> Vec<String> {
         ("list / info <id>", "see what exists"),
         ("movehere <id> / tp <id>", "bring it to you, or go to it"),
         ("rotate <id> <yaw> [pitch]", "turn it"),
-        ("text <id> <line|line|...>", "set its name or text; | starts a new line"),
-        ("addline / setline <n> / removeline <n>", "edit one line"),
         ("glow / scale <n>", "outline, size"),
         ("action <id> add <any|left|right> <what> <value>", "what a click does: message, broadcast, console, player, sound, teleport, title, actionbar"),
         ("action <id> list / remove <n> / clear", "see or drop actions"),
@@ -106,6 +114,10 @@ pub fn help(group: Group) -> Vec<String> {
             ("baby / sneak / invisible <id>", "pose"),
         ]),
         Group::Display => rows.extend([
+            ("text <id> <line|line|...>", "set its text; | starts a new line"),
+            ("addline / setline <n> / removeline <n>", "edit one line"),
+            ("attach <id> <npc> [height] / detach <id>", "fix it to an NPC, such as a name above its head"),
+            ("offset <id> <x> <y> <z>", "where an attached display sits from its NPC"),
             ("item / block / particle <id> <name>", "change what is shown"),
             ("billboard <id> <center|fixed|vertical|horizontal>", "how it turns to the viewer"),
             ("background <id> <#AARRGGBB|none> / shadow / seethrough", "text look"),
@@ -123,6 +135,13 @@ pub fn run(store: &mut Store, group: Group, input: &str, env: &dyn Env) -> Outco
     let mut out = Outcome::default();
     if let Err(problem) = run_inner(store, group, input.trim(), env, &mut out) {
         out.lines.push(format!("&c{problem}"));
+    }
+    // displays attached to an NPC that changed are built again with it
+    if group == Group::Npc {
+        let npcs: Vec<String> = out.changed.iter().filter_map(|k| k.strip_prefix("npc:")).map(str::to_string).collect();
+        for display in store.things.iter().filter(|t| t.group == Group::Display && npcs.contains(&t.attached)) {
+            out.changed.push(key(Group::Display, &display.id));
+        }
     }
     out
 }
@@ -159,16 +178,63 @@ fn run_inner(store: &mut Store, group: Group, input: &str, env: &dyn Env, out: &
     }
     let key = key(group, &id);
     if sub == "remove" || sub == "delete" {
-        if !store.remove(group, &id) {
+        if store.get(group, &id).is_none() {
             return Err(format!("there is no {word} called {id}"));
         }
+        // displays attached to a removed NPC stay where they are, on their own
+        if group == Group::Npc {
+            let placed = store.all_placed();
+            for display in store.things.iter_mut().filter(|t| t.group == Group::Display && t.attached == id) {
+                if let Some(at) = placed.iter().find(|p| p.group == Group::Display && p.id == display.id) {
+                    (display.world, display.x, display.y, display.z) = (at.world.clone(), at.x, at.y, at.z);
+                }
+                display.attached.clear();
+                out.lines.push(format!("&7the display {} is no longer attached", display.id));
+            }
+        }
+        store.remove(group, &id);
         out.removed.push(key);
         out.lines.push(format!("&fremoved &e{id}"));
         return Ok(());
     }
-    let Some(thing) = store.get_mut(group, &id) else {
+    if group == Group::Npc && matches!(sub.as_str(), "text" | "name" | "addline" | "setline" | "removeline") {
+        return Err(format!("an NPC has no text of its own: make a text display and attach it, with /display create <id> text <words> and then /display attach <id> {id}"));
+    }
+    if !id_subs(group).contains(&sub.as_str()) && !matches!(sub.as_str(), "name" | "goto" | "move") {
+        return Err(format!("there is no /{} {sub}; /{} help lists the commands", group.command(), group.command()));
+    }
+    if sub == "attach" {
+        let mut words = rest.split_whitespace();
+        let npc_id = words.next().ok_or("say which NPC: /display attach <id> <npc> [height]")?.to_lowercase();
+        let npc = store.get(Group::Npc, &npc_id).ok_or(format!("there is no NPC called {npc_id}"))?.clone();
+        let height: f64 = match words.next() {
+            Some(h) => number(Some(h), "the height above the NPC's feet")?,
+            None => npc.label_height() + 0.1,
+        };
+        // above the middle of a block NPC, whose own position is its corner
+        let middle = if npc.kind == Kind::Block { 0.5 * npc.scale as f64 } else { 0.0 };
+        let display = store.get_mut(group, &id).ok_or(format!("there is no display called {id}"))?;
+        (display.attached, display.offset) = (npc_id.clone(), [middle, height, middle]);
+        out.changed.push(key);
+        out.lines.push(format!("&e{id} &fis attached to &e{npc_id}&f, &b{height:.2}&f above its feet"));
+        return Ok(());
+    }
+    if sub == "detach" {
+        let placed = store.get(group, &id).map(|t| store.placed(t)).ok_or(format!("there is no display called {id}"))?;
+        if placed.attached.is_empty() {
+            return Err(format!("{id} is not attached to anything"));
+        }
+        let display = store.get_mut(group, &id).ok_or("gone")?;
+        (display.world, display.x, display.y, display.z) = (placed.world, placed.x, placed.y, placed.z);
+        display.attached.clear();
+        out.changed.push(key);
+        out.lines.push(format!("&e{id} &fstands on its own now"));
+        return Ok(());
+    }
+    let Some(placed) = store.get(group, &id).map(|t| store.placed(t)) else {
         return Err(format!("there is no {word} called {id}; /{} list shows them", group.command()));
     };
+    let Some(thing) = store.get_mut(group, &id) else { return Err("gone".into()) };
     let mut words = rest.split_whitespace();
     let first = words.next();
     let done = |out: &mut Outcome, line: String| {
@@ -189,8 +255,22 @@ fn run_inner(store: &mut Store, group: Group, input: &str, env: &dyn Env, out: &
                 out.lines.push(format!("&7action {}: &f{} click, {}: {}", i + 1, format!("{:?}", action.click).to_lowercase(), format!("{:?}", action.what).to_lowercase(), action.value));
             }
         }
-        "tp" | "goto" => out.teleport = Some((thing.world.clone(), thing.x, thing.y, thing.z)),
+        "tp" | "goto" => out.teleport = Some((placed.world.clone(), placed.x, placed.y, placed.z)),
+        "offset" => {
+            if thing.attached.is_empty() {
+                return Err(format!("{id} is not attached to an NPC; /display attach {id} <npc> first"));
+            }
+            let mut at = [0.0; 3];
+            for (i, axis) in ["x", "y", "z"].iter().enumerate() {
+                at[i] = number(if i == 0 { first } else { words.next() }, &format!("the {axis} distance from the NPC"))?;
+            }
+            thing.offset = at;
+            done(out, format!("&e{id} &fnow sits &b{} {} {}&f from its NPC", at[0], at[1], at[2]));
+        }
         "movehere" | "move" => {
+            if !thing.attached.is_empty() {
+                return Err(format!("{id} is attached to {}; move the NPC, change /display offset, or /display detach it first", thing.attached));
+            }
             let (world, x, y, z, yaw, _) = env.here().ok_or("only a player can do that")?;
             (thing.world, thing.x, thing.y, thing.z, thing.yaw) = (world, x, y, z, yaw);
             done(out, format!("&fmoved &e{id} &fto you"));
@@ -410,7 +490,6 @@ fn create(store: &mut Store, group: Group, rest: &str, env: &dyn Env, out: &mut 
         (Group::Npc, "player") => {
             thing.kind = Kind::Player;
             thing.what = value.split_whitespace().next().unwrap_or("").to_string();
-            thing.lines = vec![if thing.what.is_empty() { id.clone() } else { thing.what.clone() }];
             thing.look = true;
         }
         (_, "block" | "item") => {
@@ -503,7 +582,7 @@ mod tests {
         let kinds: Vec<(Kind, &str)> = s.things.iter().map(|t| (t.kind, t.what.as_str())).collect();
         assert_eq!(kinds, [(Kind::Mob, "villager"), (Kind::Player, "Notch"), (Kind::Block, "chest"), (Kind::Item, "diamond"), (Kind::Item, "diamond_sword"), (Kind::Mob, "iron_golem")]);
         assert!(s.things[0].look && s.things[1].look && !s.things[2].look);
-        assert_eq!(s.things[1].lines, ["Notch"]);
+        assert!(s.things.iter().all(|t| t.lines.is_empty()), "an NPC has no text of its own");
         // blocks sit on the grid
         assert_eq!((s.things[2].x, s.things[2].z, s.things[2].yaw), (10.0, -4.0, 0.0));
         assert_eq!((s.things[0].x, s.things[0].yaw), (10.5, 90.0));
@@ -539,13 +618,18 @@ mod tests {
     fn edits_text_look_and_gear() {
         let mut s = Store::default();
         ok(&mut s, Group::Npc, "create guide villager");
-        let out = ok(&mut s, Group::Npc, "text guide &aGuide | &7Click me");
-        assert_eq!(out.changed, ["npc:guide"]);
-        ok(&mut s, Group::Npc, "addline guide third");
-        ok(&mut s, Group::Npc, "setline guide 2 &7Right-click me");
-        ok(&mut s, Group::Npc, "removeline guide 3");
-        assert_eq!(s.things[0].lines, ["&aGuide", "&7Right-click me"]);
-        assert!(bad(&mut s, Group::Npc, "setline guide 9 x").contains("has 2 lines"));
+        ok(&mut s, Group::Display, "create tag text first");
+        let out = ok(&mut s, Group::Display, "text tag &aGuide | &7Click me");
+        assert_eq!(out.changed, ["display:tag"]);
+        ok(&mut s, Group::Display, "addline tag third");
+        ok(&mut s, Group::Display, "setline tag 2 &7Right-click me");
+        ok(&mut s, Group::Display, "removeline tag 3");
+        assert_eq!(s.things[1].lines, ["&aGuide", "&7Right-click me"]);
+        assert!(bad(&mut s, Group::Display, "setline tag 9 x").contains("has 2 lines"));
+        // an NPC's text is a display attached to it
+        for sub in ["text guide hi", "addline guide hi", "setline guide 1 hi", "removeline guide 1"] {
+            assert!(bad(&mut s, Group::Npc, sub).contains("/display attach"), "{sub}");
+        }
         ok(&mut s, Group::Npc, "look guide off");
         ok(&mut s, Group::Npc, "glow guide");
         ok(&mut s, Group::Npc, "scale guide 1.5");
@@ -598,15 +682,76 @@ mod tests {
     fn every_listed_subcommand_is_understood() {
         let mut s = Store::default();
         ok(&mut s, Group::Npc, "create guide villager");
-        for sub in ID_SUBS {
-            let out = run(&mut s.clone(), Group::Npc, &format!("{sub} guide"), &Me(true));
-            assert!(!out.lines.iter().any(|l| l.contains("there is no /npc")), "{sub}: {:?}", out.lines);
+        ok(&mut s, Group::Display, "create sign text hi");
+        for (group, id) in [(Group::Npc, "guide"), (Group::Display, "sign")] {
+            for sub in id_subs(group) {
+                let out = run(&mut s.clone(), group, &format!("{sub} {id}"), &Me(true));
+                assert!(!out.lines.iter().any(|l| l.contains("there is no /")), "{sub}: {:?}", out.lines);
+            }
         }
+        assert!(!id_subs(Group::Npc).contains(&"text") && id_subs(Group::Display).contains(&"attach"));
         for sub in PLAIN_SUBS {
             ok(&mut s, Group::Npc, sub);
         }
         let bodies = body_types();
         assert!(bodies.contains(&"villager") && !bodies.contains(&"text_display") && !bodies.contains(&"player"));
+    }
+
+    #[test]
+    fn displays_attach_to_npcs_and_follow_them() {
+        let mut s = Store::default();
+        ok(&mut s, Group::Npc, "create guide villager");
+        ok(&mut s, Group::Npc, "create shop block chest");
+        ok(&mut s, Group::Display, "create tag text &aGuide|&7Click me");
+        ok(&mut s, Group::Display, "create star item diamond");
+        let out = ok(&mut s, Group::Display, "attach tag guide");
+        assert_eq!(out.changed, ["display:tag"]);
+        ok(&mut s, Group::Display, "attach star shop 2");
+        let placed = |s: &Store, id: &str| s.placed(s.get(Group::Display, id).unwrap());
+        // above the villager's head, and above the middle of the block
+        let tag = placed(&s, "tag");
+        assert_eq!((tag.x, tag.z), (10.5, -3.5));
+        assert!((tag.y - (64.0 + 2.3)).abs() < 1e-9, "{}", tag.y);
+        let star = placed(&s, "star");
+        assert_eq!((star.x, star.y, star.z), (10.5, 66.0, -3.5));
+        // changing or moving the NPC rebuilds what is attached to it
+        s.get_mut(Group::Npc, "guide").unwrap().x = 100.0;
+        let out = ok(&mut s, Group::Npc, "glow guide");
+        assert_eq!(out.changed, ["npc:guide", "display:tag"]);
+        assert_eq!(placed(&s, "tag").x, 100.0);
+        ok(&mut s, Group::Display, "offset tag 0 3 1");
+        assert_eq!((placed(&s, "tag").y, placed(&s, "tag").z), (67.0, -2.5));
+        assert!(ok(&mut s, Group::Display, "info tag").lines[0].contains("attached to guide"));
+        assert_eq!(ok(&mut s, Group::Display, "tp tag").teleport, Some(("overworld".to_string(), 100.0, 67.0, -2.5)));
+        assert!(bad(&mut s, Group::Display, "movehere tag").contains("attached to guide"));
+        assert!(bad(&mut s, Group::Display, "attach tag nobody").contains("no NPC called nobody"));
+        assert!(bad(&mut s, Group::Display, "offset star 1 2").contains("z distance"));
+        assert!(bad(&mut s, Group::Npc, "attach guide shop").contains("there is no /npc attach"));
+        // detached, it stays where it was
+        ok(&mut s, Group::Display, "detach tag");
+        let tag = s.get(Group::Display, "tag").unwrap();
+        assert_eq!((tag.attached.as_str(), tag.x, tag.y, tag.z), ("", 100.0, 67.0, -2.5));
+        assert!(bad(&mut s, Group::Display, "detach tag").contains("not attached"));
+        assert!(bad(&mut s, Group::Display, "offset tag 1 2 3").contains("not attached"));
+        // removing the NPC leaves its displays standing
+        let out = ok(&mut s, Group::Npc, "remove shop");
+        assert_eq!(out.removed, ["npc:shop"]);
+        let star = s.get(Group::Display, "star").unwrap();
+        assert_eq!((star.attached.as_str(), star.x, star.y, star.z), ("", 10.5, 66.0, -3.5));
+    }
+
+    #[test]
+    fn names_saved_on_npcs_become_attached_displays() {
+        let mut old = Store::from_json(r#"{"things":[{"id":"guide","group":"npc","kind":"mob","what":"villager","world":"overworld","x":1,"y":64,"z":3,"lines":["&aGuide","&7Click me"]},{"id":"sign","group":"display","kind":"text","world":"overworld","x":5,"y":64,"z":5,"lines":["hi"]}]}"#).unwrap();
+        assert_eq!(old.names_to_displays(), 1);
+        assert_eq!(old.names_to_displays(), 0, "only once");
+        assert!(old.get(Group::Npc, "guide").unwrap().lines.is_empty());
+        let name = old.get(Group::Display, "guide-name").unwrap();
+        assert_eq!((name.kind, name.attached.as_str(), &name.lines), (Kind::Text, "guide", &vec!["&aGuide".to_string(), "&7Click me".to_string()]));
+        let placed = old.placed(name);
+        assert_eq!((placed.x, placed.z), (1.0, 3.0));
+        assert!(placed.y > 66.0);
+        assert_eq!(old.get(Group::Display, "sign").unwrap().lines, ["hi"]);
     }
 
     #[test]
