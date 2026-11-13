@@ -7,7 +7,7 @@ NPCs and displays for [Pumpkin](https://github.com/Pumpkin-MC/Pumpkin) servers.
 - A display can be **attached to an NPC**, such as a name above its head, and goes wherever the NPC goes.
 - Both can glow, be scaled, and **do things when clicked**: send a message, run a command, play a sound, teleport the player.
 
-Everything is made in game with `/npc` and `/display`, and saved in one file you can also edit by hand.
+Everything is made in game with `/npc` and `/display`, or in your browser with the built-in **web editor**, and saved in one file you can also edit by hand.
 
 Built for Pumpkin 0.2.2 (Minecraft 26.3).
 
@@ -15,7 +15,7 @@ Built for Pumpkin 0.2.2 (Minecraft 26.3).
 
 1. Download `Cascade.wasm` from the [latest release](https://github.com/Xathr/Cascade/releases/latest).
 2. Put it in your server's `plugins` folder (Linux and Windows alike).
-3. Start the server. The first time, Pumpkin asks in the console whether Cascade may read and write its own data folder (`fs.read.data`, `fs.write.data`); answer yes.
+3. Start the server. The first time, Pumpkin asks in the console whether Cascade may read and write its own data folder (`fs.read.data`, `fs.write.data`) and open a port for the web editor (`network.tcp`); answer yes.
 
 The commands need the permission `cascade:admin`, which operators of level 2 and up have.
 
@@ -47,6 +47,15 @@ A floating title, a turning item and some sparkle:
 /display create sparkle particle end_rod
 ```
 
+## The web editor
+
+Type `/npc web` (or `/display web`) and click **open the editor**. The page lists every NPC and display; pick one to change its kind, text (with a live preview of the colours), position, looks, gear and click actions, or to attach a display to an NPC. **Save to server** puts the changes in the game at once.
+
+- The link holds a secret that changes every time the server starts, so only someone you give the link to can use the editor. Anyone with the link can change your NPCs and displays, so don't post it.
+- The editor uses port 8787. Open that port on your host or firewall if you connect from another machine.
+- In `plugins/data/cascade/config.toml`: `web_port` changes the port (0 switches the editor off), and `web_address` sets the address used in the link if the one worked out for you is wrong.
+- The page is served over plain http. On a server reached over the internet, treat the link like a password for that session.
+
 ## NPCs: `/npc`
 
 `<id>` is a short name you choose (letters, numbers, `-` and `_`). Press Tab as you type: the commands, mob types, particles, slots and other fixed choices complete themselves. Names of your NPCs, items and blocks are typed by hand.
@@ -67,6 +76,7 @@ A floating title, a turning item and some sparkle:
 | `equip <id> <slot> [item\|hand\|none]` | Gear: `mainhand`, `offhand`, `head`, `chest`, `legs`, `feet` |
 | `scale <id> <n>`, `glow <id>`, `baby <id>`, `sneak <id>`, `invisible <id>` | Looks; the last four switch on and off |
 | `action ...`, `cooldown`, `permission` | See [Clicks](#clicks) |
+| `web` | Give you the link to the web editor |
 | `reload` | Read `things.json` again |
 
 ## Displays: `/display`

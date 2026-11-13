@@ -46,6 +46,10 @@ thread_local! {
     static CLICKS: RefCell<HashMap<(String, String), u64>> = RefCell::new(HashMap::new());
     /// Who has been sent each player NPC's skin: thing -> (its entity number, players).
     static SKINNED: RefCell<HashMap<String, (i32, Vec<String>)>> = RefCell::new(HashMap::new());
+    /// The web editor's server, when it is on.
+    static WEB: RefCell<Option<crate::web::Web>> = const { RefCell::new(None) };
+    /// The host to put in the editor's link, from config.toml; empty to work it out.
+    static WEB_ADDRESS: RefCell<String> = const { RefCell::new(String::new()) };
 }
 
 fn tagged(msg: &str) -> String {
@@ -58,20 +62,22 @@ fn warn(msg: &str) {
     pumpkin_plugin_api::logging::log(pumpkin_plugin_api::logging::LogLevel::Warn, &tagged(&color::warn(msg)));
 }
 
-/// Shows the sender a line written with `&` codes: console colours in the console, the same
-/// colours as chat colours in game, each after the plugin's tag.
-fn say(sender: &CommandSender, line: &str) {
+/// Shows the sender a line written with `&` codes and buttons: console colours in the console,
+/// the same colours and clickable buttons in game. The plugin's tag goes in front when `tag` is
+/// set, as on the first line of a reply.
+fn say(sender: &CommandSender, line: &str, tag: bool) {
     if sender.is_console() {
-        sender.send_message(TextComponent::text(&tagged(&color::styled(line))));
+        let text = color::console(line);
+        sender.send_message(TextComponent::text(&if tag { tagged(&text) } else { format!("{} {text}", color::tag("[Cascade]")) }));
     } else {
-        let coloured = color::with_colours(|| tagged(&color::styled(line)));
-        match TextComponent::from_json(&color::chat_json(&coloured)) {
+        match TextComponent::from_json(&color::chat(line, tag.then_some("[Cascade]"))) {
             Ok(message) => sender.send_message(message),
-            Err(_) => sender.send_message(TextComponent::text(&color::strip(&coloured))),
+            Err(_) => sender.send_message(TextComponent::text(&color::strip(&color::with_colours(|| color::console(line))))),
         }
     }
 }
 
+/// Text the server's owner wrote, with `&` colour codes, as the game shows it.
 fn component(text: &str) -> TextComponent {
     TextComponent::from_legacy_string_with_code(text, '&')
 }
@@ -349,6 +355,7 @@ fn every_tick(server: Server) {
         *t += 1;
         *t
     });
+    serve_web(&server);
     let things: Vec<Thing> = STORE.with(|s| s.borrow().all_placed());
     if things.is_empty() && LIVE.with(|l| l.borrow().is_empty()) {
         return;
@@ -402,6 +409,56 @@ fn every_tick(server: Server) {
                 }
             }
         });
+    }
+}
+
+/// The game's lists, for checking what the web editor sends when nobody is at a keyboard.
+struct Checker;
+impl Env for Checker {
+    fn here(&self) -> Option<(String, f64, f64, f64, f32, f32)> {
+        None
+    }
+    fn held_item(&self) -> Option<String> {
+        None
+    }
+    fn is_item(&self, id: &str) -> bool {
+        is_item(id)
+    }
+    fn is_block(&self, id: &str) -> bool {
+        pumpkin_plugin_api::world::Block::of(id).is_some()
+    }
+}
+
+/// Answers the web editor: hands it the list, and takes a changed list back.
+fn serve_web(server: &Server) {
+    let mut saved = false;
+    WEB.with(|w| {
+        let Ok(mut web) = w.try_borrow_mut() else { return };
+        let Some(web) = web.as_mut() else { return };
+        web.serve(&mut |ask| match ask {
+            crate::web::Ask::State => {
+                let things = STORE.with(|s| serde_json::to_value(&s.borrow().things).unwrap_or_default());
+                serde_json::json!({ "version": VERSION, "things": things, "mobs": commands::body_types(), "particles": names::PARTICLES, "slots": SLOTS, "actions": DO_NAMES.iter().map(|(n, _)| *n).collect::<Vec<_>>() }).to_string()
+            }
+            crate::web::Ask::Save(body) => {
+                let checked = Store::from_json(&body).map_err(|e| format!("could not read what was sent: {e}")).and_then(|mut store| commands::validate(&mut store, &Checker).map(|()| store));
+                match checked {
+                    Ok(store) => {
+                        let count = store.things.len();
+                        STORE.with(|s| *s.borrow_mut() = store);
+                        saved = true;
+                        serde_json::json!({ "ok": true, "count": count }).to_string()
+                    }
+                    Err(error) => serde_json::json!({ "ok": false, "error": error }).to_string(),
+                }
+            }
+        });
+    });
+    if saved {
+        save();
+        unbuild_all();
+        build_pass(server, &players(server));
+        info(&format!("the web editor saved {} NPCs and displays", STORE.with(|s| s.borrow().things.len())));
     }
 }
 
@@ -600,7 +657,7 @@ impl CommandHandler for ThingCommand {
             let out = commands::run(&mut store, self.group, &input, &Sender(&sender));
             Some((before != *store, out))
         }) else {
-            say(&sender, "&cbusy; try again in a moment");
+            say(&sender, "&c\u{2718} busy; try again in a moment", true);
             return Ok(0);
         };
         if before {
@@ -613,9 +670,9 @@ impl CommandHandler for ThingCommand {
             match load() {
                 Ok(n) => {
                     unbuild_all();
-                    say(&sender, &format!("&fread things.json again: &b{n}&f NPCs and displays"));
+                    say(&sender, &format!("&a\u{2714} &fread things.json again: &b{n}&f NPCs and displays"), true);
                 }
-                Err(e) => say(&sender, &format!("&c{e}")),
+                Err(e) => say(&sender, &format!("&c\u{2718} {e}"), true),
             }
         }
         if !out.changed.is_empty() || out.reload {
@@ -624,10 +681,29 @@ impl CommandHandler for ThingCommand {
         if let (Some((world, x, y, z)), Some(player)) = (&out.teleport, sender.as_player()) {
             match world_named(&server, world) {
                 Some(world) => player.teleport((*x, *y, *z), None, None, world),
-                None => say(&sender, &format!("&cthe world {world} is not loaded")),
+                None => say(&sender, &format!("&c\u{2718} the world {world} is not loaded"), true),
             }
         }
-        out.lines.iter().for_each(|l| say(&sender, l));
+        if out.web {
+            let line = WEB.with(|w| match w.borrow().as_ref() {
+                Some(web) => {
+                    // the address the player connected with reaches this server, so use its host
+                    let typed = sender.as_player().and_then(|p| p.as_java()).map(|j| j.get_server_address()).unwrap_or_default();
+                    let host = WEB_ADDRESS.with(|a| a.borrow().clone());
+                    let host = if !host.is_empty() { host } else { typed.rsplit_once(':').map_or(typed.clone(), |(h, _)| h.to_string()).trim_end_matches('.').to_string() };
+                    let host = if host.is_empty() { "localhost".to_string() } else { host };
+                    let url = format!("http://{host}:{}/?t={}", web.port, web.token);
+                    if sender.is_console() {
+                        format!("&fthe editor is at &b{url}")
+                    } else {
+                        format!("&fthe editor is ready: {}&7the link is secret and changes when the server restarts", commands::button("open the editor", &format!("u{url}")[1..], "Click to open it in your browser", true).replace("\u{2}r", "\u{2}u"))
+                    }
+                }
+                None => "&c\u{2718} the web editor is off: set web_port in plugins/data/cascade/config.toml, allow the plugin network.tcp, and restart".to_string(),
+            });
+            say(&sender, &line, true);
+        }
+        out.lines.iter().enumerate().for_each(|(i, l)| say(&sender, l, i == 0));
         Ok(1)
     }
 }
@@ -708,18 +784,44 @@ fn command_tree(group: Group, names: &[String]) -> Command {
     command.execute(ThingCommand { group, path: vec![Part::Word("help")] })
 }
 
-/// `console_colors` from config.toml, which is written with its default the first time.
-fn console_colours(folder: &str) -> bool {
+/// What config.toml says. The file is written with its defaults the first time, and settings a
+/// newer version adds are put in when they are missing.
+struct Settings {
+    console_colours: bool,
+    /// The web editor's port; 0 for no web editor.
+    web_port: u16,
+    web_address: String,
+}
+
+const DEFAULT_SETTINGS: &[(&str, &str, &str)] = &[
+    ("console_colors", "true", "Colours in the console, like Pumpkin's own output. Set to false for plain text."),
+    ("web_port", "8787", "The port of the web editor (/npc web). 0 switches the editor off."),
+    ("web_address", "\"\"", "The address to put in the editor's link, such as \"play.example.com\". Leave empty to use\n# the address the player connected with."),
+];
+
+fn settings(folder: &str) -> Settings {
     let path = format!("{folder}/config.toml");
-    match std::fs::read_to_string(&path) {
-        Ok(text) => !text.lines().any(|l| {
-            let l = l.split('#').next().unwrap_or("").replace(' ', "");
-            l == "console_colors=false"
-        }),
-        Err(_) => {
-            let _ = std::fs::write(&path, "# cascade settings\n\n# Colours in the console, like Pumpkin's own output. Set to false for plain text.\nconsole_colors = true\n");
-            true
+    let mut text = std::fs::read_to_string(&path).unwrap_or_else(|_| "# cascade settings\n".to_string());
+    let read = |text: &str, key: &str| {
+        text.lines().find_map(|line| {
+            let line = line.split('#').next().unwrap_or("");
+            let (name, value) = line.split_once('=')?;
+            (name.trim() == key).then(|| value.trim().trim_matches('"').to_string())
+        })
+    };
+    let before = text.clone();
+    for (key, value, about) in DEFAULT_SETTINGS {
+        if read(&text, key).is_none() {
+            text.push_str(&format!("\n# {about}\n{key} = {value}\n"));
         }
+    }
+    if text != before {
+        let _ = std::fs::write(&path, &text);
+    }
+    Settings {
+        console_colours: read(&text, "console_colors").as_deref() != Some("false"),
+        web_port: read(&text, "web_port").and_then(|p| p.parse().ok()).unwrap_or(8787),
+        web_address: read(&text, "web_address").unwrap_or_default(),
     }
 }
 
@@ -740,6 +842,7 @@ impl Plugin for Cascade {
             permissions: vec![
                 permissions::FS_READ_DATA.into(),  // things.json
                 permissions::FS_WRITE_DATA.into(), // things.json
+                permissions::NETWORK_TCP.into(),   // the web editor's port
             ],
         }
     }
@@ -747,7 +850,9 @@ impl Plugin for Cascade {
     fn on_load(&self, context: Context) -> pumpkin_plugin_api::Result<()> {
         let data = context.get_data_folder();
         let _ = std::fs::create_dir_all(&data);
-        color::set_enabled(console_colours(&data));
+        let settings = settings(&data);
+        color::set_enabled(settings.console_colours);
+        WEB_ADDRESS.with(|a| *a.borrow_mut() = settings.web_address.clone());
         FOLDER.with(|f| *f.borrow_mut() = data);
         let count = match load() {
             Ok(n) => n,
@@ -771,6 +876,15 @@ impl Plugin for Cascade {
         context.register_event_handler::<PlayerInteractEntityEvent, _>(OnInteract, EventPriority::High, true)?;
         context.register_event_handler::<PlayerInteractUnknownEntityEvent, _>(OnInteractUnknown, EventPriority::High, true)?;
         context.register_event_handler::<EntityDamageByEntityEvent, _>(OnDamage, EventPriority::High, true)?;
+        if settings.web_port != 0 {
+            match crate::web::Web::start(settings.web_port) {
+                Ok(web) => {
+                    info(&format!("  {} {}", color::dim(&format!("{:<13}", "web editor")), format!("{} {}", color::value(&format!("port {}", settings.web_port)), color::dim("(/npc web gives the link)"))));
+                    WEB.with(|w| *w.borrow_mut() = Some(web));
+                }
+                Err(e) => warn(&format!("the web editor is off: could not open port {} ({e}). It needs the network.tcp permission; web_port = 0 in config.toml silences this.", settings.web_port)),
+            }
+        }
         context.schedule_repeating_task(20, 1, every_tick);
         Ok(())
     }

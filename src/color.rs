@@ -68,9 +68,57 @@ fn chat_colour(code: &str) -> (&'static str, bool) {
     }
 }
 
+/// A reply written with `&` codes and buttons (see `commands::button`), as a console line: the
+/// buttons are left out.
+pub fn console(line: &str) -> String {
+    let mut plain = String::new();
+    let mut rest = line;
+    while let Some(start) = rest.find('\u{1}') {
+        plain.push_str(&rest[..start]);
+        rest = rest[start..].split_once('\u{3}').map_or("", |(_, after)| after);
+    }
+    plain.push_str(rest);
+    styled(plain.trim_end())
+}
+
+/// The same reply as a chat message (a JSON text component): the colours become chat colours
+/// and each button a piece of text to click. `tag` goes in front, in the plugin's colour.
+pub fn chat(line: &str, tag: Option<&str>) -> String {
+    let mut parts: Vec<serde_json::Value> = Vec::new();
+    if let Some(tag) = tag {
+        parts.push(serde_json::json!({ "text": format!("{tag} "), "color": "gold" }));
+    }
+    let mut rest = line;
+    loop {
+        let (before, button) = match rest.find('\u{1}') {
+            Some(start) => (&rest[..start], rest[start + 1..].split_once('\u{3}')),
+            None => (rest, None),
+        };
+        parts.extend(chat_parts(&with_colours(|| styled(before))));
+        let Some((button, after)) = button else { break };
+        let mut fields = button.split('\u{2}');
+        let (label, action, hover) = (fields.next().unwrap_or(""), fields.next().unwrap_or(""), fields.next().unwrap_or(""));
+        let (kind, target) = action.split_at(action.len().min(1));
+        // a command to finish typing reads as the command itself; anything else is a button
+        let (text, colour) = if label.starts_with('/') { (format!("{label} "), "yellow") } else { (format!("[{label}] "), "gold") };
+        let click = match kind {
+            "r" => serde_json::json!({ "action": "run_command", "command": target }),
+            "u" => serde_json::json!({ "action": "open_url", "url": target }),
+            _ => serde_json::json!({ "action": "suggest_command", "command": target }),
+        };
+        parts.push(serde_json::json!({ "text": text, "color": colour, "click_event": click, "hover_event": { "action": "show_text", "value": [{ "text": hover, "color": "gray" }] } }));
+        rest = after;
+    }
+    serde_json::json!({ "text": "", "extra": parts }).to_string()
+}
+
 /// An ANSI-coloured console line as a chat message (a JSON text component) with the same colours.
 /// Links are clickable.
 pub fn chat_json(line: &str) -> String {
+    serde_json::json!({ "text": "", "extra": chat_parts(line) }).to_string()
+}
+
+fn chat_parts(line: &str) -> Vec<serde_json::Value> {
     let mut parts = Vec::new();
     let (mut colour, mut bold) = ("white", false);
     let mut rest = line;
@@ -99,7 +147,8 @@ pub fn chat_json(line: &str) -> String {
         rest = &after[end + 1..];
     }
     push(rest, colour, bold);
-    serde_json::json!({ "text": "", "extra": parts }).to_string()
+    drop(push);
+    parts
 }
 
 /// Names: of NPCs, displays and players.
@@ -183,6 +232,26 @@ mod tests {
         assert!(chat.contains(r#"{"color":"green","text":"on"}"#), "{chat}");
         // a message someone wrote for players keeps its own codes
         assert_eq!(styled("&dpink &lbold"), "&dpink &lbold");
+    }
+
+    #[test]
+    fn buttons_are_clickable_in_chat_and_absent_from_the_console() {
+        let _colours = test_lock();
+        set_enabled(false);
+        let line = format!(" &8\u{2022} &eguide&7 (mob villager) {}{}", "\u{1}go\u{2}r/npc tp guide\u{2}Teleport to it\u{3}", "\u{1}remove\u{2}s/npc remove guide\u{2}Delete\u{3}");
+        assert_eq!(console(&line), " \u{2022} guide (mob villager)");
+        let chat: serde_json::Value = serde_json::from_str(&chat(&line, Some("[Cascade]"))).unwrap();
+        let parts = chat["extra"].as_array().unwrap();
+        assert_eq!(parts[0], serde_json::json!({ "text": "[Cascade] ", "color": "gold" }));
+        let go = parts.iter().find(|p| p["text"] == "[go] ").unwrap();
+        assert_eq!(go["click_event"], serde_json::json!({ "action": "run_command", "command": "/npc tp guide" }));
+        assert_eq!(go["hover_event"]["value"][0]["text"], "Teleport to it");
+        let remove = parts.iter().find(|p| p["text"] == "[remove] ").unwrap();
+        assert_eq!(remove["click_event"]["action"], "suggest_command");
+        assert!(parts.iter().any(|p| p["text"] == "guide" && p["bold"] == true), "colours are on in chat whatever the console setting");
+        set_enabled(true);
+        let link: serde_json::Value = serde_json::from_str(&super::chat("\u{1}open\u{2}uhttp://x:1/?t=a\u{2}Open\u{3}", None)).unwrap();
+        assert_eq!(link["extra"][0]["click_event"], serde_json::json!({ "action": "open_url", "url": "http://x:1/?t=a" }));
     }
 
     #[test]

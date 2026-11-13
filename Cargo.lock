@@ -36,6 +36,7 @@ dependencies = [
  "pumpkin-plugin-api",
  "serde",
  "serde_json",
+ "wasip2",
 ]
 
 [[package]]
@@ -218,7 +219,7 @@ dependencies = [
  "serde_json",
  "tracing",
  "tracing-serde-structured",
- "wit-bindgen",
+ "wit-bindgen 0.63.0",
 ]
 
 [[package]]
@@ -401,6 +402,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a2c754d6c33795a1c324727428e5a7dedb5b06195f9890bdbcba760d3e246563"
 
 [[package]]
+name = "wasip2"
+version = "2.0.1+wasi-0.2.12"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "89aafd4b69fb41a64cfd5d7f214cde92ab422ec4d9bcd55fcc816d3f5f49bbf3"
+dependencies = [
+ "wit-bindgen 0.62.0",
+]
+
+[[package]]
 name = "wasm-encoder"
 version = "0.262.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -432,6 +442,15 @@ dependencies = [
  "hashbrown",
  "indexmap",
  "semver",
+]
+
+[[package]]
+name = "wit-bindgen"
+version = "0.62.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "53cb4b5556c3a791e86838ea287782bdafa704d55b0e68b5b81a3a16b9ea5f4b"
+dependencies = [
+ "bitflags",
 ]
 
 [[package]]

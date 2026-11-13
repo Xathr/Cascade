@@ -26,6 +26,15 @@ pub struct Outcome {
     pub teleport: Option<(String, f64, f64, f64)>,
     /// Read the file again.
     pub reload: bool,
+    /// Show the sender the link to the web editor.
+    pub web: bool,
+}
+
+/// A piece of a chat line the player can click: `label` is shown, clicking runs `command`
+/// (or, with `run` false, puts it in their chat box to finish), and `hover` explains it. The
+/// console shows nothing for it.
+pub fn button(label: &str, command: &str, hover: &str, run: bool) -> String {
+    format!("\u{1}{label}\u{2}{}{command}\u{2}{hover}\u{3}", if run { 'r' } else { 's' })
 }
 
 /// Entity types that make no sense as an NPC's body.
@@ -66,7 +75,7 @@ fn lines_of(text: &str) -> Vec<String> {
 }
 
 /// Subcommands that take no id.
-pub const PLAIN_SUBS: &[&str] = &["help", "list", "reload"];
+pub const PLAIN_SUBS: &[&str] = &["help", "list", "reload", "web"];
 /// Subcommands that name a thing first, for either group.
 const SHARED_SUBS: &[&str] = &[
     "remove", "info", "tp", "movehere", "rotate", "look", "glow", "scale", "baby", "sneak", "invisible", "skin", "type", "equip", "item", "block", "particle", "billboard", "spin", "background", "shadow", "seethrough", "width", "align", "range", "count", "interval", "spread", "speed", "action", "cooldown", "permission",
@@ -127,14 +136,19 @@ pub fn help(group: Group) -> Vec<String> {
         ]),
     }
     rows.push(("reload", "read things.json again"));
-    lines.extend(rows.iter().map(|(usage, what)| format!("&e/{c} {usage} &7{what}")));
+    rows.push(("web", "open the editor in your browser"));
+    lines.extend(rows.iter().map(|(usage, what)| {
+        // clicking a row puts the start of the command in the chat box
+        let start = usage.split(['<', '[', '/']).next().unwrap_or(usage).trim();
+        format!(" &8\u{25b8} {}&7{what}", button(&format!("/{c} {usage}"), &format!("/{c} {start} "), "Click to start typing this", false))
+    }));
     lines
 }
 
 pub fn run(store: &mut Store, group: Group, input: &str, env: &dyn Env) -> Outcome {
     let mut out = Outcome::default();
     if let Err(problem) = run_inner(store, group, input.trim(), env, &mut out) {
-        out.lines.push(format!("&c{problem}"));
+        out.lines.push(format!("&c\u{2718} {problem}"));
     }
     // displays attached to an NPC that changed are built again with it
     if group == Group::Npc {
@@ -158,12 +172,24 @@ fn run_inner(store: &mut Store, group: Group, input: &str, env: &dyn Env, out: &
         }
         "list" => {
             let all: Vec<&Thing> = store.things.iter().filter(|t| t.group == group).collect();
+            let c = group.command();
             out.lines.push(format!("&b{} {word}{}", all.len(), if all.len() == 1 { "" } else { "s" }));
-            out.lines.extend(all.iter().map(|t| format!("&e{}", t.summary())));
+            out.lines.extend(all.iter().map(|t| {
+                let rest = t.summary();
+                let rest = rest.strip_prefix(&t.id).unwrap_or(&rest);
+                format!(" &8\u{2022} &e{}&7{rest} {}{}{}", t.id, button("go", &format!("/{c} tp {}", t.id), "Teleport to it", true), button("info", &format!("/{c} info {}", t.id), "Show its settings", true), button("remove", &format!("/{c} remove {}", t.id), "Click, then press Enter to delete it", false))
+            }));
+            if all.is_empty() {
+                out.lines.push(format!(" &7none yet: {}", button(&format!("/{c} create"), &format!("/{c} create "), "Click to start typing this", false)));
+            }
             return Ok(());
         }
         "reload" => {
             out.reload = true;
+            return Ok(());
+        }
+        "web" | "editor" => {
+            out.web = true;
             return Ok(());
         }
         "create" => return create(store, group, rest, env, out),
@@ -189,12 +215,12 @@ fn run_inner(store: &mut Store, group: Group, input: &str, env: &dyn Env, out: &
                     (display.world, display.x, display.y, display.z) = (at.world.clone(), at.x, at.y, at.z);
                 }
                 display.attached.clear();
-                out.lines.push(format!("&7the display {} is no longer attached", display.id));
+                out.lines.push(format!("&6\u{2139} &7the display {} is no longer attached", display.id));
             }
         }
         store.remove(group, &id);
         out.removed.push(key);
-        out.lines.push(format!("&fremoved &e{id}"));
+        out.lines.push(format!("&a\u{2714} &fremoved &e{id}"));
         return Ok(());
     }
     if group == Group::Npc && matches!(sub.as_str(), "text" | "name" | "addline" | "setline" | "removeline") {
@@ -216,7 +242,7 @@ fn run_inner(store: &mut Store, group: Group, input: &str, env: &dyn Env, out: &
         let display = store.get_mut(group, &id).ok_or(format!("there is no display called {id}"))?;
         (display.attached, display.offset) = (npc_id.clone(), [middle, height, middle]);
         out.changed.push(key);
-        out.lines.push(format!("&e{id} &fis attached to &e{npc_id}&f, &b{height:.2}&f above its feet"));
+        out.lines.push(format!("&a\u{2714} &e{id} &fis attached to &e{npc_id}&f, &b{height:.2}&f above its feet"));
         return Ok(());
     }
     if sub == "detach" {
@@ -228,7 +254,7 @@ fn run_inner(store: &mut Store, group: Group, input: &str, env: &dyn Env, out: &
         (display.world, display.x, display.y, display.z) = (placed.world, placed.x, placed.y, placed.z);
         display.attached.clear();
         out.changed.push(key);
-        out.lines.push(format!("&e{id} &fstands on its own now"));
+        out.lines.push(format!("&a\u{2714} &e{id} &fstands on its own now"));
         return Ok(());
     }
     let Some(placed) = store.get(group, &id).map(|t| store.placed(t)) else {
@@ -239,21 +265,25 @@ fn run_inner(store: &mut Store, group: Group, input: &str, env: &dyn Env, out: &
     let first = words.next();
     let done = |out: &mut Outcome, line: String| {
         out.changed.push(key.clone());
-        out.lines.push(line);
+        out.lines.push(format!("&a\u{2714} {line}"));
     };
     match sub.as_str() {
         "info" => {
-            out.lines.push(format!("&b{}", thing.summary()));
+            let c = group.command();
+            out.lines.push(format!("&e{}", thing.summary()));
+            let row = |name: &str, value: String| format!(" &8\u{2022} &7{name:<11}&f{value}");
             if !thing.lines.is_empty() {
-                out.lines.push(format!("&7text: &f{}", thing.lines.join(" &8| &f")));
+                out.lines.push(row("text", thing.lines.join(" &8| &f")));
             }
-            out.lines.push(format!("&7look {}&7, glow {}&7, scale &f{}&7, cooldown &f{}s&7, permission &f{}", on_off(thing.look), on_off(thing.glow), thing.scale, thing.cooldown, if thing.permission.is_empty() { "none" } else { &thing.permission }));
+            out.lines.push(row("look", format!("{}&7, glow {}&7, scale &b{}", on_off(thing.look), on_off(thing.glow), thing.scale)));
+            out.lines.push(row("clicks", format!("&7wait &b{}s&7, permission &b{}", thing.cooldown, if thing.permission.is_empty() { "none" } else { &thing.permission })));
             if !thing.equipment.is_empty() {
-                out.lines.push(format!("&7gear: &f{}", thing.equipment.iter().map(|(slot, item)| format!("{slot}={item}")).collect::<Vec<_>>().join(", ")));
+                out.lines.push(row("gear", thing.equipment.iter().map(|(slot, item)| format!("{slot}=&b{item}&f")).collect::<Vec<_>>().join(", ")));
             }
             for (i, action) in thing.actions.iter().enumerate() {
-                out.lines.push(format!("&7action {}: &f{} click, {}: {}", i + 1, format!("{:?}", action.click).to_lowercase(), format!("{:?}", action.what).to_lowercase(), action.value));
+                out.lines.push(format!(" &8\u{2022} &7action {}   &f{} click &8\u{2192} &b{} &f{} {}", i + 1, format!("{:?}", action.click).to_lowercase(), format!("{:?}", action.what).to_lowercase(), action.value, button("remove", &format!("/{c} action {id} remove {}", i + 1), "Click, then press Enter to remove this action", false)));
             }
+            out.lines.push(format!(" {}{}{}", button("go", &format!("/{c} tp {id}"), "Teleport to it", true), button("move here", &format!("/{c} movehere {id}"), "Bring it to where you stand", false), button("add action", &format!("/{c} action {id} add right message "), "Click to start typing an action", false)));
         }
         "tp" | "goto" => out.teleport = Some((placed.world.clone(), placed.x, placed.y, placed.z)),
         "offset" => {
@@ -368,7 +398,7 @@ fn run_inner(store: &mut Store, group: Group, input: &str, env: &dyn Env, out: &
                 None | Some("none") => String::new(),
                 Some(node) => node.to_string(),
             };
-            out.lines.push(format!("&e{id}&f: clicking needs &b{}", if thing.permission.is_empty() { "nothing" } else { &thing.permission }));
+            out.lines.push(format!("&a\u{2714} &e{id}&f: clicking needs &b{}", if thing.permission.is_empty() { "nothing" } else { &thing.permission }));
         }
         "skin" => {
             if thing.kind != Kind::Player {
@@ -432,7 +462,7 @@ fn run_inner(store: &mut Store, group: Group, input: &str, env: &dyn Env, out: &
                 let (kind, count) = (thing.kind, thing.actions.len());
                 done(out, format!("&e{id} &fnow has {count} action{}", if count == 1 { "" } else { "s" }));
                 if click == Click::Left && kind != Kind::Mob {
-                    out.lines.push("&7note: Pumpkin only reports a left click on mob NPCs, so this one will not fire; use right or any".into());
+                    out.lines.push("&6\u{2139} &7Pumpkin only reports a left click on mob NPCs, so this one will not fire; use right or any".into());
                 }
             }
             Some("clear") => {
@@ -450,7 +480,7 @@ fn run_inner(store: &mut Store, group: Group, input: &str, env: &dyn Env, out: &
             Some("list") | None => {
                 out.lines.push(format!("&e{id} &fhas {} action{}", thing.actions.len(), if thing.actions.len() == 1 { "" } else { "s" }));
                 for (i, action) in thing.actions.iter().enumerate() {
-                    out.lines.push(format!("&7{}. &f{} click &7-> &b{} &f{}", i + 1, format!("{:?}", action.click).to_lowercase(), format!("{:?}", action.what).to_lowercase(), action.value));
+                    out.lines.push(format!(" &8\u{2022} &7{}. &f{} click &8\u{2192} &b{} &f{}", i + 1, format!("{:?}", action.click).to_lowercase(), format!("{:?}", action.what).to_lowercase(), action.value));
                 }
             }
             Some(other) => return Err(format!("action add, list, remove or clear, not {other}")),
@@ -469,6 +499,75 @@ fn check_what(kind: Kind, name: &str, env: &dyn Env) -> Result<(), String> {
         Kind::Particle if !PARTICLES.contains(&name) => Err(format!("{name} is not a particle")),
         _ => Ok(()),
     }
+}
+
+/// Checks a whole list, as the web editor sends it, and tidies what can be tidied. The error
+/// says which thing is wrong and why.
+pub fn validate(store: &mut Store, env: &dyn Env) -> Result<(), String> {
+    let ids: Vec<(Group, String)> = store.things.iter().map(|t| (t.group, t.id.clone())).collect();
+    for (i, thing) in store.things.iter_mut().enumerate() {
+        let name = format!("{} {}", thing.group.word(), thing.id);
+        if !valid_id(&thing.id) {
+            return Err(format!("{name}: an id is letters, numbers, - or _, at most 32 of them"));
+        }
+        if ids.iter().take(i).any(|(g, id)| *g == thing.group && *id == thing.id) {
+            return Err(format!("{name}: there are two with this id"));
+        }
+        let fits = match thing.group {
+            Group::Npc => matches!(thing.kind, Kind::Player | Kind::Mob | Kind::Block | Kind::Item),
+            Group::Display => matches!(thing.kind, Kind::Text | Kind::Item | Kind::Block | Kind::Particle),
+        };
+        if !fits {
+            return Err(format!("{name}: a {} can't be a {}", thing.group.word(), thing.kind.name()));
+        }
+        if thing.kind != Kind::Player {
+            thing.what = clean_name(&thing.what);
+        }
+        check_what(thing.kind, &thing.what, env).map_err(|e| format!("{name}: {e}"))?;
+        if thing.kind == Kind::Text && thing.lines.iter().all(|l| l.trim().is_empty()) {
+            return Err(format!("{name}: a text display needs some text"));
+        }
+        if thing.group == Group::Npc {
+            thing.lines.clear();
+            thing.attached.clear();
+        } else if !thing.attached.is_empty() && !ids.iter().any(|(g, id)| *g == Group::Npc && *id == thing.attached) {
+            return Err(format!("{name}: there is no NPC called {} to attach it to", thing.attached));
+        }
+        if thing.world.trim().is_empty() {
+            return Err(format!("{name}: it needs a world"));
+        }
+        if ![thing.x, thing.y, thing.z, thing.offset[0], thing.offset[1], thing.offset[2]].iter().all(|v| v.is_finite()) {
+            return Err(format!("{name}: its position is not a number"));
+        }
+        if !BILLBOARDS.contains(&thing.billboard.as_str()) || !ALIGNMENTS.contains(&thing.alignment.as_str()) {
+            return Err(format!("{name}: billboard is one of {}, and align one of {}", BILLBOARDS.join(", "), ALIGNMENTS.join(", ")));
+        }
+        if !thing.background.is_empty() && parse_colour(&thing.background).is_none() {
+            return Err(format!("{name}: a background colour is written #AARRGGBB"));
+        }
+        thing.scale = if thing.scale.is_finite() { thing.scale.clamp(0.05, 16.0) } else { 1.0 };
+        thing.count = thing.count.clamp(0, 500);
+        thing.interval = thing.interval.max(1);
+        thing.line_width = thing.line_width.max(1);
+        thing.cooldown = if thing.cooldown.is_finite() { thing.cooldown.max(0.0) } else { 0.5 };
+        thing.equipment = std::mem::take(&mut thing.equipment).into_iter().map(|(slot, item)| (slot, clean_name(&item))).filter(|(_, item)| !item.is_empty() && item != "none").collect();
+        for (slot, item) in &thing.equipment {
+            if !SLOTS.contains(&slot.as_str()) {
+                return Err(format!("{name}: {slot} is not a gear slot"));
+            }
+            if !env.is_item(item) {
+                return Err(format!("{name}: {item} is not an item"));
+            }
+        }
+        thing.actions.retain(|a| !a.value.trim().is_empty());
+        for action in &mut thing.actions {
+            action.value = action.value.trim().trim_start_matches('/').to_string();
+            if action.what == Do::Teleport && action.value.split_whitespace().take(3).filter(|w| w.parse::<f64>().is_ok()).count() < 3 {
+                return Err(format!("{name}: a teleport action needs x y z"));
+            }
+        }
+    }
+    Ok(())
 }
 
 fn create(store: &mut Store, group: Group, rest: &str, env: &dyn Env, out: &mut Outcome) -> Result<(), String> {
@@ -531,7 +630,7 @@ fn create(store: &mut Store, group: Group, rest: &str, env: &dyn Env, out: &mut 
         (thing.x, thing.y, thing.z, thing.yaw) = (thing.x.floor(), thing.y.floor(), thing.z.floor(), 0.0);
     }
     out.changed.push(key(group, &id));
-    out.lines.push(format!("&fcreated {word} &e{}", thing.summary()));
+    out.lines.push(format!("&a\u{2714} &fcreated {word} &e{}", thing.summary()));
     store.things.push(thing);
     Ok(())
 }
@@ -564,7 +663,7 @@ mod tests {
     fn bad(store: &mut Store, group: Group, input: &str) -> String {
         let before = store.clone();
         let out = run(store, group, input, &Me(true));
-        assert!(out.lines.len() == 1 && out.lines[0].starts_with("&c"), "{input}: {:?}", out.lines);
+        assert!(out.lines.len() == 1 && out.lines[0].starts_with("&c\u{2718} "), "{input}: {:?}", out.lines);
         assert_eq!(*store, before, "{input} changed something");
         assert!(out.changed.is_empty() && out.removed.is_empty());
         out.lines[0].clone()
@@ -752,6 +851,39 @@ mod tests {
         assert_eq!((placed.x, placed.z), (1.0, 3.0));
         assert!(placed.y > 66.0);
         assert_eq!(old.get(Group::Display, "sign").unwrap().lines, ["hi"]);
+    }
+
+    #[test]
+    fn lists_and_help_have_buttons_and_the_editor_check_works() {
+        let mut s = Store::default();
+        assert!(ok(&mut s, Group::Npc, "list").lines[1].contains("none yet"));
+        ok(&mut s, Group::Npc, "create guide villager");
+        ok(&mut s, Group::Display, "create tag text hi");
+        ok(&mut s, Group::Display, "attach tag guide");
+        let list = ok(&mut s, Group::Npc, "list");
+        assert!(list.lines[1].contains(&button("go", "/npc tp guide", "Teleport to it", true)), "{:?}", list.lines);
+        assert!(ok(&mut s, Group::Npc, "help").lines[1].contains("\u{2}s/npc create \u{2}"));
+        assert!(ok(&mut s, Group::Display, "web").web);
+        // what the web editor sends back is checked as a whole
+        let mut edited = s.clone();
+        edited.things[0].what = "Iron Golem".into();
+        edited.things[0].scale = 99.0;
+        edited.things[0].equipment.insert("head".into(), "minecraft:iron_helmet".into());
+        assert_eq!(validate(&mut edited, &Me(true)), Ok(()));
+        assert_eq!((edited.things[0].what.as_str(), edited.things[0].scale, edited.things[0].equipment["head"].as_str()), ("iron_golem", 16.0, "iron_helmet"));
+        let broken = |change: &dyn Fn(&mut Store)| {
+            let mut copy = s.clone();
+            change(&mut copy);
+            validate(&mut copy, &Me(true)).unwrap_err()
+        };
+        assert!(broken(&|s| s.things[0].what = "dragonfly".into()).contains("NPC guide: dragonfly is not a kind of mob"));
+        assert!(broken(&|s| s.things[1].attached = "ghost".into()).contains("no NPC called ghost"));
+        assert!(broken(&|s| s.things[1].lines = vec![" ".into()]).contains("needs some text"));
+        assert!(broken(&|s| s.things[1].id = "guide name".into()).contains("an id is"));
+        assert!(broken(&|s| s.things.push(s.things[0].clone())).contains("two with this id"));
+        assert!(broken(&|s| s.things[0].kind = Kind::Particle).contains("can't be a particle"));
+        assert!(broken(&|s| s.things[0].x = f64::NAN).contains("position"));
+        assert!(broken(&|s| { s.things[0].equipment.insert("hat".into(), "diamond".into()); }).contains("not a gear slot"));
     }
 
     #[test]

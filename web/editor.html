@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cascade editor</title>
+<style>
+:root{--bg:#14110d;--panel:#1d1913;--panel2:#262017;--line:#3a3022;--text:#f3ead9;--dim:#a39680;--orange:#ff8a1f;--yellow:#ffd23f;--red:#ff6b5e;--green:#7ddc7a}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.45 system-ui,Segoe UI,Roboto,sans-serif}
+header{display:flex;align-items:center;gap:14px;padding:12px 18px;border-bottom:1px solid var(--line);background:var(--panel);position:sticky;top:0;z-index:5;flex-wrap:wrap}
+header h1{margin:0;font-size:20px;letter-spacing:.5px}
+header h1 b{color:var(--yellow)} header h1 i{color:var(--orange);font-style:normal}
+#status{color:var(--dim);font-size:13px;flex:1;min-width:120px}
+#status.bad{color:var(--red)} #status.good{color:var(--green)}
+button{font:inherit;color:var(--text);background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:7px 13px;cursor:pointer}
+button:hover{border-color:var(--orange)}
+button.primary{background:var(--orange);border-color:var(--orange);color:#1a1206;font-weight:600}
+button.primary:disabled{opacity:.45;cursor:default}
+button.small{padding:3px 9px;font-size:13px}
+button.danger:hover{border-color:var(--red);color:var(--red)}
+main{display:grid;grid-template-columns:280px 1fr;min-height:calc(100vh - 58px)}
+aside{border-right:1px solid var(--line);background:var(--panel);padding:12px;overflow:auto}
+aside h2{font-size:12px;text-transform:uppercase;letter-spacing:1px;color:var(--dim);margin:14px 4px 6px;display:flex;justify-content:space-between;align-items:center}
+.item{padding:8px 10px;border-radius:8px;cursor:pointer;border:1px solid transparent;display:flex;justify-content:space-between;gap:8px}
+.item:hover{background:var(--panel2)} .item.on{background:var(--panel2);border-color:var(--orange)}
+.item small{color:var(--dim)} .item .link{color:var(--yellow);font-size:12px}
+section{padding:18px 22px;max-width:980px}
+.empty{color:var(--dim);padding:60px 0;text-align:center}
+fieldset{border:1px solid var(--line);border-radius:10px;margin:0 0 16px;padding:12px 14px;background:var(--panel)}
+legend{color:var(--yellow);font-weight:600;padding:0 6px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px 14px}
+label{display:flex;flex-direction:column;gap:3px;font-size:13px;color:var(--dim)}
+label.check{flex-direction:row;align-items:center;gap:8px;color:var(--text);font-size:14px}
+input,select,textarea{font:inherit;color:var(--text);background:var(--bg);border:1px solid var(--line);border-radius:7px;padding:6px 8px;width:100%}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--orange)}
+input[type=checkbox]{width:auto;accent-color:var(--orange)}
+textarea{min-height:76px;resize:vertical;font-family:ui-monospace,Consolas,monospace}
+.preview{background:#0b0906 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16'%3E%3Crect width='8' height='8' fill='%2313100b'/%3E%3Crect x='8' y='8' width='8' height='8' fill='%2313100b'/%3E%3C/svg%3E");border:1px solid var(--line);border-radius:8px;padding:14px;margin-top:8px;text-align:center;font-family:ui-monospace,Consolas,monospace;min-height:48px;text-shadow:1px 1px 0 #000a}
+.row{display:grid;grid-template-columns:90px 120px 1fr auto;gap:8px;margin-bottom:8px;align-items:center}
+.hint{color:var(--dim);font-size:12.5px;margin:6px 0 0}
+.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;gap:10px;flex-wrap:wrap}
+.top h2{margin:0;font-size:22px} .top h2 small{color:var(--dim);font-size:14px;font-weight:400}
+@media(max-width:760px){main{grid-template-columns:1fr}aside{border-right:0;border-bottom:1px solid var(--line)}.row{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+<header>
+  <h1><b>CAS</b><i>CADE</i> editor</h1>
+  <span id="status">Loading…</span>
+  <button id="reload" title="Throw away changes and load what the server has">Reload</button>
+  <button id="save" class="primary" disabled>Save to server</button>
+</header>
+<main>
+  <aside>
+    <h2>NPCs <button class="small" data-add="npc">+ New</button></h2><div id="npcs"></div>
+    <h2>Displays <button class="small" data-add="display">+ New</button></h2><div id="displays"></div>
+    <p class="hint">Changes go to the server when you press <b>Save to server</b>. New things appear at the position you type; in game, <code>/npc movehere &lt;id&gt;</code> brings one to you.</p>
+  </aside>
+  <section id="editor"><div class="empty">Pick an NPC or display on the left, or make a new one.</div></section>
+</main>
+<script>
+const token = new URLSearchParams(location.search).get('t') || '';
+let state = {things: [], mobs: [], particles: [], slots: [], actions: []}, current = null, dirty = false;
+const $ = (s, r = document) => r.querySelector(s);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]));
+const COLOURS = {0:'#000',1:'#0000aa',2:'#00aa00',3:'#00aaaa',4:'#aa0000',5:'#aa00aa',6:'#ffaa00',7:'#aaaaaa',8:'#555555',9:'#5555ff',a:'#55ff55',b:'#55ffff',c:'#ff5555',d:'#ff55ff',e:'#ffff55',f:'#ffffff'};
+function status(text, kind) { const el = $('#status'); el.textContent = text; el.className = kind || ''; }
+function touch() { dirty = true; $('#save').disabled = false; status('Unsaved changes'); }
+// Minecraft & colour codes as HTML, for the preview
+function mc(line) {
+  let out = '', colour = '#fff', bold = false, italic = false, under = false, text = '';
+  const flush = () => { if (text) out += `<span style="color:${colour};${bold ? 'font-weight:700;' : ''}${italic ? 'font-style:italic;' : ''}${under ? 'text-decoration:underline;' : ''}">${esc(text)}</span>`; text = ''; };
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i], n = (line[i + 1] || '').toLowerCase();
+    if (c === '&' && (COLOURS[n] || 'lnor'.includes(n) && n)) {
+      flush(); i++;
+      if (COLOURS[n]) { colour = COLOURS[n]; bold = italic = under = false; }
+      else if (n === 'l') bold = true; else if (n === 'o') italic = true; else if (n === 'n') under = true;
+      else { colour = '#fff'; bold = italic = under = false; }
+    } else text += c;
+  }
+  flush(); return out || '&nbsp;';
+}
+const DEFAULTS = {id:'',group:'npc',kind:'mob',what:'villager',world:'world',x:0,y:64,z:0,yaw:0,pitch:0,lines:[],look:false,look_range:8,glow:false,scale:1,baby:false,sneaking:false,invisible:false,equipment:{},actions:[],cooldown:0.5,permission:'',billboard:'center',background:'',shadow:false,see_through:false,line_width:200,alignment:'center',spin:0,view_range:1,count:5,interval:10,spread:0.3,speed:0,attached:'',offset:[0,0,0]};
+const KINDS = {npc:[['mob','Mob'],['player','Player'],['block','Block'],['item','Item']], display:[['text','Text'],['item','Item'],['block','Block'],['particle','Particles']]};
+function list() {
+  for (const group of ['npc', 'display']) {
+    $('#' + group + 's').innerHTML = state.things.map((t, i) => t.group !== group ? '' :
+      `<div class="item ${i === current ? 'on' : ''}" data-i="${i}"><span>${esc(t.id)} <small>${esc(t.kind)}${t.what ? ' · ' + esc(t.what) : ''}</small></span>${t.attached ? `<span class="link">↳ ${esc(t.attached)}</span>` : ''}</div>`).join('') || '<div class="hint">None yet.</div>';
+  }
+}
+function num(name, label, t, step) { return `<label>${label}<input type="number" step="${step || 'any'}" data-f="${name}" value="${t[name]}"></label>`; }
+function check(name, label, t) { return `<label class="check"><input type="checkbox" data-f="${name}" ${t[name] ? 'checked' : ''}>${label}</label>`; }
+function select(name, label, t, options) { return `<label>${label}<select data-f="${name}">${options.map(o => { const [v, l] = Array.isArray(o) ? o : [o, o]; return `<option value="${esc(v)}" ${t[name] === v ? 'selected' : ''}>${esc(l)}</option>`; }).join('')}</select></label>`; }
+function text(name, label, t, hint) { return `<label>${label}<input data-f="${name}" value="${esc(t[name])}" ${hint ? `placeholder="${esc(hint)}"` : ''}></label>`; }
+function editor() {
+  const el = $('#editor'), t = state.things[current];
+  if (!t) { el.innerHTML = '<div class="empty">Pick an NPC or display on the left, or make a new one.</div>'; return; }
+  const npc = t.group === 'npc', body = ['text', 'item', 'block'].includes(t.kind);
+  const what = t.kind === 'mob' ? select('what', 'Mob type', t, state.mobs) : t.kind === 'particle' ? select('what', 'Particle', t, state.particles)
+    : t.kind === 'player' ? text('what', 'Skin (a player name)', t, 'Notch') : t.kind === 'text' ? '' : text('what', t.kind === 'block' ? 'Block' : 'Item', t, t.kind === 'block' ? 'stone' : 'diamond');
+  const npcs = state.things.filter(o => o.group === 'npc').map(o => o.id);
+  let html = `<div class="top"><h2>${esc(t.id || '(no id)')} <small>${npc ? 'NPC' : 'display'}</small></h2><div><button data-act="copy">Duplicate</button> <button class="danger" data-act="delete">Delete</button></div></div>
+  <fieldset><legend>What it is</legend><div class="grid">${text('id', 'Id', t, 'letters, numbers, - and _')}${select('kind', 'Kind', t, KINDS[t.group])}${what}${num('scale', 'Scale', t, 0.05)}</div></fieldset>`;
+  if (t.kind === 'text') html += `<fieldset><legend>Text</legend><label>One line per row; &amp; colour codes such as &amp;6 gold, &amp;e yellow, &amp;l bold<textarea data-lines>${esc(t.lines.join('\n'))}</textarea></label><div class="preview" id="preview"></div>
+    <div class="grid" style="margin-top:10px">${select('alignment', 'Align', t, ['center', 'left', 'right'])}${num('line_width', 'Line width', t, 1)}${text('background', 'Background (#AARRGGBB)', t, 'game default')}${check('shadow', 'Text shadow', t)}${check('see_through', 'Visible through blocks', t)}</div></fieldset>`;
+  html += `<fieldset><legend>Where</legend>`;
+  if (!npc) html += `<div class="grid" style="margin-bottom:10px">${select('attached', 'Attached to NPC', t, [['', 'nothing: stands on its own'], ...npcs])}</div>`;
+  if (!npc && t.attached) html += `<div class="grid"><label>Right of the NPC<input type="number" step="any" data-o="0" value="${t.offset[0]}"></label><label>Above its feet<input type="number" step="any" data-o="1" value="${t.offset[1]}"></label><label>In front<input type="number" step="any" data-o="2" value="${t.offset[2]}"></label></div><p class="hint">An attached display goes wherever its NPC goes.</p>`;
+  else html += `<div class="grid">${text('world', 'World', t)}${num('x', 'X', t)}${num('y', 'Y', t)}${num('z', 'Z', t)}${num('yaw', 'Facing (yaw)', t, 1)}${num('pitch', 'Tilt (pitch)', t, 1)}</div>`;
+  html += `</fieldset><fieldset><legend>Looks</legend><div class="grid">${check('glow', 'Glowing outline', t)}`;
+  if (t.kind === 'mob' || t.kind === 'player') html += `${check('look', 'Faces the nearest player', t)}${num('look_range', 'within blocks', t, 1)}${check('sneaking', 'Sneaking', t)}${check('invisible', 'Invisible', t)}${t.kind === 'mob' ? check('baby', 'Baby', t) : ''}`;
+  if (body) html += `${select('billboard', 'Turns to the viewer', t, [['center', 'fully'], ['vertical', 'left and right only'], ['horizontal', 'up and down only'], ['fixed', 'never']])}${num('spin', 'Spin (degrees a second)', t, 5)}${num('view_range', 'View range', t, 0.1)}`;
+  if (t.kind === 'particle') html += `${num('count', 'Particles per burst', t, 1)}${num('interval', 'Ticks between bursts', t, 1)}${num('spread', 'Spread', t, 0.05)}${num('speed', 'Speed', t, 0.01)}`;
+  html += `</div></fieldset>`;
+  if (t.kind === 'mob' || t.kind === 'player') html += `<fieldset><legend>Gear</legend><div class="grid">${state.slots.map(s => `<label>${s}<input data-gear="${s}" value="${esc(t.equipment[s] || '')}" placeholder="none"></label>`).join('')}</div><p class="hint">Item names, such as diamond_sword or iron_helmet.</p></fieldset>`;
+  if (t.kind !== 'particle') html += `<fieldset><legend>When clicked</legend><div id="actions">${t.actions.map((a, i) => `<div class="row" data-a="${i}"><select data-ak="click">${['any', 'right', 'left'].map(c => `<option ${a.click === c ? 'selected' : ''}>${c}</option>`).join('')}</select><select data-ak="do">${state.actions.map(c => `<option ${a.do === c ? 'selected' : ''}>${c}</option>`).join('')}</select><input data-ak="value" value="${esc(a.value)}" placeholder="message, command, sound or x y z"><button class="small danger" data-ar="${i}">✕</button></div>`).join('')}</div>
+    <button class="small" data-act="action">+ Add action</button><div class="grid" style="margin-top:12px">${num('cooldown', 'Seconds between clicks', t, 0.1)}${text('permission', 'Permission needed', t, 'none')}</div>
+    <p class="hint">%player% is the player who clicked, %id% this ${npc ? 'NPC' : 'display'}. Left clicks only reach mob NPCs; use right or any elsewhere.</p></fieldset>`;
+  el.innerHTML = html; preview();
+}
+function preview() { const p = $('#preview'), t = state.things[current]; if (p && t) p.innerHTML = t.lines.map(mc).join('<br>'); }
+document.addEventListener('input', e => {
+  const t = state.things[current], el = e.target; if (!t) return;
+  if (el.dataset.f) {
+    const f = el.dataset.f; t[f] = el.type === 'checkbox' ? el.checked : el.type === 'number' ? (parseFloat(el.value) || 0) : el.value;
+    touch();
+    if (f === 'id') { $('.top h2').firstChild.textContent = (t.id || '(no id)') + ' '; list(); }
+    if (el.tagName === 'SELECT' && ['kind', 'attached'].includes(f)) {
+      if (f === 'kind') { t.what = ({mob: 'villager', particle: 'flame', player: '', text: '', block: 'stone', item: 'diamond'})[t.kind]; if (t.kind === 'text' && !t.lines.length) t.lines = ['&eNew text']; }
+      if (f === 'attached' && t.attached) t.offset = [0, 2.3, 0];
+      list(); editor();
+    } else if (f === 'what') list();
+  } else if (el.dataset.lines !== undefined) { t.lines = el.value.split('\n'); touch(); preview(); }
+  else if (el.dataset.o) { t.offset[+el.dataset.o] = parseFloat(el.value) || 0; touch(); }
+  else if (el.dataset.gear) { if (el.value.trim()) t.equipment[el.dataset.gear] = el.value.trim(); else delete t.equipment[el.dataset.gear]; touch(); }
+  else if (el.dataset.ak) { t.actions[+el.closest('.row').dataset.a][el.dataset.ak] = el.value; touch(); }
+});
+document.addEventListener('click', e => {
+  const el = e.target, item = el.closest('.item');
+  if (item) { current = +item.dataset.i; list(); editor(); return; }
+  if (el.dataset.add) {
+    const group = el.dataset.add; let n = 1; while (state.things.some(t => t.group === group && t.id === group + n)) n++;
+    const near = state.things[current] || {};
+    const t = Object.assign(structuredClone(DEFAULTS), {group, id: group + n, world: near.world || DEFAULTS.world, x: near.x || 0, y: near.y || 64, z: near.z || 0}, group === 'npc' ? {look: true} : {kind: 'text', what: '', lines: ['&eNew text']});
+    state.things.push(t); current = state.things.length - 1; touch(); list(); editor(); return;
+  }
+  const t = state.things[current]; if (!t) return;
+  if (el.dataset.act === 'delete') { if (confirm(`Delete ${t.id}?`)) { state.things.forEach(o => { if (t.group === 'npc' && o.attached === t.id) o.attached = ''; }); state.things.splice(current, 1); current = null; touch(); list(); editor(); } }
+  else if (el.dataset.act === 'copy') { const c = structuredClone(t); let n = 2; while (state.things.some(o => o.group === c.group && o.id === t.id + n)) n++; c.id = t.id + n; c.x += 1; state.things.push(c); current = state.things.length - 1; touch(); list(); editor(); }
+  else if (el.dataset.act === 'action') { t.actions.push({click: 'right', do: 'message', value: ''}); touch(); editor(); }
+  else if (el.dataset.ar) { t.actions.splice(+el.dataset.ar, 1); touch(); editor(); }
+});
+async function load() {
+  status('Loading…');
+  try {
+    const r = await fetch('/api/state?t=' + encodeURIComponent(token));
+    if (r.status === 403) return status('This link is out of date. Run /npc web in game for a new one.', 'bad');
+    state = await r.json(); state.things = state.things.map(t => Object.assign(structuredClone(DEFAULTS), t));
+    current = null; dirty = false; $('#save').disabled = true; list(); editor();
+    status(`Cascade ${state.version}: ${state.things.length} NPCs and displays`, 'good');
+  } catch (err) { status('Could not reach the server: ' + err.message, 'bad'); }
+}
+$('#save').onclick = async () => {
+  status('Saving…');
+  try {
+    const r = await fetch('/api/save?t=' + encodeURIComponent(token), {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({things: state.things})});
+    if (r.status === 403) return status('This link is out of date. Run /npc web in game for a new one.', 'bad');
+    const answer = await r.json();
+    if (!answer.ok) return status(answer.error, 'bad');
+    dirty = false; $('#save').disabled = true; status(`Saved: ${answer.count} NPCs and displays are live in game`, 'good');
+  } catch (err) { status('Could not reach the server: ' + err.message, 'bad'); }
+};
+$('#reload').onclick = () => { if (!dirty || confirm('Throw away your unsaved changes?')) load(); };
+window.addEventListener('beforeunload', e => { if (dirty) e.preventDefault(); });
+load();
+</script>
+</body>
+</html>
