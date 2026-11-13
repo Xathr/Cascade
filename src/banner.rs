@@ -24,13 +24,13 @@ fn count(n: usize, one: &str) -> String {
 
 /// The banner, one console line per entry.
 pub fn lines(info: &Info) -> Vec<String> {
-    let ribbon = format!("{} {}{}{} {}", color::value("NPCs"), color::paint("95", "◆"), color::dim("━━━━━━━━━━"), color::paint("95", "◆"), color::value("displays"));
+    let ribbon = format!("{} {}{}{} {}", color::value("NPCs"), color::orange("◆"), color::dim("━━━━━━━━━━"), color::orange("◆"), color::value("displays"));
     let beside = [String::new(), format!("{} {}", color::name("cascade"), color::dim(&format!("v{}", info.version))), ribbon];
     let mut out: Vec<String> = LOGO
         .iter()
         .zip(beside)
         .map(|((cas, cade), side)| {
-            let row = format!("  {}{}", color::value(cas), color::paint("94", cade));
+            let row = format!("  {}{}", color::value(cas), color::orange(cade));
             if side.is_empty() { row } else { format!("{row}   {side}") }
         })
         .collect();

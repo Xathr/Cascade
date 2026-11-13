@@ -6,6 +6,9 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 static ENABLED: AtomicBool = AtomicBool::new(true);
 
+/// The plugin's orange (a 256-colour code; chat shows it as gold).
+const ORANGE: &str = "38;5;208";
+
 pub fn set_enabled(on: bool) {
     ENABLED.store(on, Ordering::Relaxed);
 }
@@ -60,6 +63,7 @@ fn chat_colour(code: &str) -> (&'static str, bool) {
         "93" => ("yellow", false),
         "91" => ("red", false),
         "94" => ("blue", false),
+        ORANGE => ("gold", false),
         _ => ("white", false),
     }
 }
@@ -101,7 +105,7 @@ pub fn chat_json(line: &str) -> String {
 /// Names: of NPCs, displays and players.
 pub fn name(s: &str) -> String { paint("1;97", s) }
 /// Values and settings.
-pub fn value(s: &str) -> String { paint("96", s) }
+pub fn value(s: &str) -> String { paint("93", s) }
 /// Places, hints and other detail.
 pub fn dim(s: &str) -> String { paint("90", s) }
 /// Things that are on, or went well.
@@ -111,7 +115,9 @@ pub fn warn(s: &str) -> String { paint("93", s) }
 /// Failures.
 pub fn bad(s: &str) -> String { paint("91", s) }
 /// The plugin's tag.
-pub fn tag(s: &str) -> String { paint("94", s) }
+pub fn tag(s: &str) -> String { paint(ORANGE, s) }
+/// Orange, for the second half of the logo and other accents.
+pub fn orange(s: &str) -> String { paint(ORANGE, s) }
 
 /// A message written with `&` colour codes, in the console colours above. The codes are used by
 /// meaning: `&e` a name, `&b` a value, `&7` detail, `&a` good, `&6` a note, `&c` bad, `&f` plain.
@@ -132,7 +138,7 @@ pub fn styled(line: &str) -> String {
     while let Some(c) = chars.next() {
         let next = match (c, chars.peek()) {
             ('&', Some('e')) => Some("1;97"),
-            ('&', Some('b')) => Some("96"),
+            ('&', Some('b')) => Some("93"),
             ('&', Some('7' | '8')) => Some("90"),
             ('&', Some('a')) => Some("92"),
             ('&', Some('6')) => Some("93"),
@@ -163,7 +169,8 @@ mod tests {
         assert_eq!(line, "created NPC \x1b[1;97mguide\x1b[0m \x1b[90m(mob villager)\x1b[0m: look \x1b[92mon\x1b[0m");
         assert_eq!(strip(&line), "created NPC guide (mob villager): look on");
         let chat = chat_json(&format!("{} {line}", tag("[Cascade]")));
-        assert!(chat.contains(r#"{"color":"blue","text":"[Cascade]"}"#), "{chat}");
+        assert!(chat.contains(r#"{"color":"gold","text":"[Cascade]"}"#), "{chat}");
+        assert!(chat_json(&styled("&b5")).contains(r#"{"color":"yellow","text":"5"}"#));
         assert!(chat.contains(r#"{"bold":true,"color":"white","text":"guide"}"#), "{chat}");
         assert!(chat.contains(r#"{"color":"green","text":"on"}"#), "{chat}");
         // a message someone wrote for players keeps its own codes
@@ -187,7 +194,7 @@ mod tests {
         assert_eq!(extra[1], serde_json::json!({ "text": " ", "color": "white" }));
         assert_eq!(extra[2]["color"], "gray");
         let link = extra.last().unwrap();
-        assert_eq!(link["color"], "aqua");
+        assert_eq!(link["color"], "yellow");
         assert_eq!(link["click_event"]["url"], "https://market.pumpkinmc.org/plugin/x");
         // bold names, and text with no codes at all
         let v: serde_json::Value = serde_json::from_str(&chat_json(&with_colours(|| name("Steve")))).unwrap();
