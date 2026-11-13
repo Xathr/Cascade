@@ -159,11 +159,19 @@ pub fn styled(line: &str) -> String {
     out
 }
 
+/// Tests that switch colours on or off hold this, so they do not disturb each other.
+#[cfg(test)]
+pub fn test_lock() -> std::sync::MutexGuard<'static, ()> {
+    static LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+    LOCK.lock().unwrap_or_else(|e| e.into_inner())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     #[test]
     fn styled_messages_become_console_and_chat_colours() {
+        let _colours = test_lock();
         set_enabled(true);
         let line = styled("&fcreated NPC &eguide &7(mob villager)&f: look &aon");
         assert_eq!(line, "created NPC \x1b[1;97mguide\x1b[0m \x1b[90m(mob villager)\x1b[0m: look \x1b[92mon\x1b[0m");
@@ -179,6 +187,7 @@ mod tests {
 
     #[test]
     fn colours_and_plain() {
+        let _colours = test_lock();
         set_enabled(true);
         assert_eq!(good("joined"), "\x1b[92mjoined\x1b[0m");
         set_enabled(false);
@@ -187,6 +196,7 @@ mod tests {
     }
     #[test]
     fn console_lines_become_coloured_chat() {
+        let _colours = test_lock();
         let line = with_colours(|| format!("{} {} {}", warn("v1.2 is out"), dim("Pumpkin Market:"), value("https://market.pumpkinmc.org/plugin/x")));
         let v: serde_json::Value = serde_json::from_str(&chat_json(&line)).unwrap();
         let extra = v["extra"].as_array().unwrap();
@@ -204,6 +214,7 @@ mod tests {
     }
     #[test]
     fn with_colours_restores_the_setting() {
+        let _colours = test_lock();
         set_enabled(false);
         assert_eq!(with_colours(|| good("x")), "\x1b[92mx\x1b[0m");
         assert_eq!(good("x"), "x");
@@ -211,11 +222,13 @@ mod tests {
     }
     #[test]
     fn strip_removes_colour_codes() {
+        let _colours = test_lock();
         assert_eq!(strip("\x1b[92mjoined\x1b[0m as \x1b[1;97mSteve\x1b[0m"), "joined as Steve");
         assert_eq!(strip("plain"), "plain");
     }
     #[test]
     fn client_text_cannot_forge_console_lines() {
+        let _colours = test_lock();
         assert_eq!(clean("Steve\x1b[2J\n[Server] ops: Steve", 64), "Steve[2J[Server] ops: Steve");
         assert_eq!(clean("\u{9b}31mred\r", 64), "31mred");
         assert_eq!(clean("abcdef", 3), "abc");

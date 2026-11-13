@@ -51,6 +51,7 @@ mod tests {
 
     #[test]
     fn banner_shows_the_logo_counts_and_file() {
+        let _colours = color::test_lock();
         color::set_enabled(false);
         let lines = lines(&Info { version: "1.2.3", npcs: 1, displays: 4, file: "plugins/data/cascade/things.json" });
         color::set_enabled(true);
