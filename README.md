@@ -55,6 +55,8 @@ Type `/npc web` (or `/display web`) and click **open the editor**.
 
 ![The web editor](market/screenshot-editor.png)
 
+The middle shows mobs, players, blocks and items as they look in game. Those pictures are fetched by your browser from GitHub (game textures) and mc-heads.net (player skins); without internet the editor still works and draws plain shapes instead.
+
 - **Left:** every NPC and display. Pick one to work on it.
 - **Middle:** the NPC from the side, with the displays attached to it. Drag a display to move it; drop one from the list onto the NPC to attach it. For something that stands on its own, the middle is a map from above: drag to move it.
 - **Right:** its settings: kind, text with a live preview of the colours, position, looks, gear and click actions.
