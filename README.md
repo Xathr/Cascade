@@ -58,7 +58,7 @@ Type `/npc web` (or `/display web`) and click **open the editor**.
 The middle shows mobs, players, blocks and items as they look in game. Those pictures are fetched by your browser from GitHub (game textures) and mc-heads.net (player skins); without internet the editor still works and draws plain shapes instead.
 
 - **Left:** every NPC and display. Pick one to work on it.
-- **Middle:** the NPC from the side, with the displays attached to it. Drag a display to move it; drop one from the list onto the NPC to attach it. For something that stands on its own, the middle is a map from above: drag to move it.
+- **Middle:** the world around what you picked, with everything standing where it stands in game. Drag the background to turn the view, Shift-drag to slide it, scroll to zoom, or jump to **3D**, **Front**, **Side** and **Top**. Drag a thing to move it; drop a display from the list onto an NPC to attach it. The compass shows north, yellow arrows on the ground show which way things face, dotted lines show how high a display floats, and the corner shows the exact x, y, z of what you picked.
 - **Right:** its settings: kind, text with a live preview of the colours, position, looks, gear and click actions.
 
 **Save to server** puts the changes in the game at once.
